@@ -41,11 +41,11 @@ function renderInline(source, target, book) {
       }
       let output;
       if (name === 'a') {
-        // Note links stay inert until footnotes arrive in Stage 5; the href is kept for that.
-        const isNote = node.getAttribute('type') === 'note';
-        output = element(isNote ? 'sup' : 'span', isNote ? 'fb-note' : 'fb-link');
+        // Links into the notes body open a footnote popup; other links are inert text.
         const href = imageHref(node);
-        if (href) output.dataset.href = href;
+        const isNote = Boolean(book.note(href));
+        output = element(isNote ? 'sup' : 'span', isNote ? 'fb-note' : 'fb-link');
+        if (isNote) output.dataset.href = href;
       } else {
         output = element(INLINE_TAGS[name] || 'span');
       }
@@ -111,4 +111,39 @@ export function renderChunk(book, section, chunk) {
   const fragment = document.createDocumentFragment();
   for (let index = chunk.start; index < chunk.end; index += 1) fragment.append(renderItem(section.items[index], book));
   return fragment;
+}
+
+const NOTE_TEXT = new Set(['p', 'v', 'subtitle', 'text-author', 'date']);
+
+function renderNoteBlocks(source, target, book) {
+  for (const node of source.children) {
+    const name = node.localName;
+    if (name === 'title' || name === 'section') continue;
+    if (NOTE_TEXT.has(name)) {
+      const output = element('p', name === 'p' ? '' : 'fb-' + name);
+      renderInline(node, output, book);
+      target.append(output);
+    } else if (name === 'empty-line') {
+      target.append(element('div', 'fb-empty-line'));
+    } else if (name === 'image') {
+      const image = renderImage(node, book);
+      if (image) target.append(image);
+    } else if (name === 'table') {
+      target.append(renderTable(node, book));
+    } else if (node.children.length) {
+      const box = element('div', 'fb-' + name);
+      renderNoteBlocks(node, box, book);
+      target.append(box);
+    }
+  }
+}
+
+// Renders a footnote section for the popup. Returns null when the link points nowhere.
+export function renderNote(book, href) {
+  const section = book.note(href);
+  if (!section) return null;
+  const title = Array.from(section.children).find((node) => node.localName === 'title');
+  const fragment = document.createDocumentFragment();
+  renderNoteBlocks(section, fragment, book);
+  return { title: (title?.textContent || '').replace(/\s+/g, ' ').trim(), fragment };
 }

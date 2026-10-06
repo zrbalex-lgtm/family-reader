@@ -3,6 +3,10 @@
   import Icon from '../components/Icon.svelte';
   import ReaderSettings from '../components/ReaderSettings.svelte';
   import EndOfBook from '../components/EndOfBook.svelte';
+  import ReaderContents from '../components/ReaderContents.svelte';
+  import Modal from '../components/Modal.svelte';
+  import { listBookmarks, addBookmark, deleteBookmark } from '../lib/bookmarks.js';
+  import { renderNote } from '../lib/fb2/render.js';
   import { auth } from '../lib/auth.js';
   import { navigate } from '../lib/router.js';
   import { findBookById, downloadObject, friendlyLibraryError } from '../lib/library-api.js';
@@ -35,11 +39,23 @@
   let remote = $state(null);
   let paginatorReady = $state(false);
   let ended = $state(false);
+  let contentsOpen = $state(false);
+  let contentsTab = $state('contents');
+  let bookmarks = $state([]);
+  let bookmarksError = $state('');
+  let pageBookmark = $state(null);
+  let bookmarkDraft = $state(null);
+  let bookmarkNote = $state('');
+  let bookmarkBusy = $state(false);
+  let bookmarkDialogError = $state('');
+  let note = $state(null);
+  let noteBody = $state();
   const canFullscreen = fullscreenSupported();
 
   // Imperative reader objects; not reactive on purpose.
   let paginator = null;
-  let book = null;
+  // Raw state: the parsed book is large and never mutated, so it is not deeply proxied.
+  let book = $state.raw(null);
   // Only user-initiated moves are saved; opening, resizing and settings changes are not reading.
   let saveNext = false;
   let movedSinceOpen = false;
@@ -60,6 +76,7 @@
 
   function handleChange(next) {
     info = next;
+    updatePageBookmark();
     if (!dragging) sliderValue = Math.round(next.percent * 10);
     if (!saveNext) return;
     saveNext = false;
@@ -78,6 +95,78 @@
       // Forward from the last page ends the book; back from the first page does nothing.
       if (forward) showEnd();
     }
+  }
+
+  function updatePageBookmark() {
+    pageBookmark = paginator ? bookmarks.find((bookmark) => paginator.isOnCurrentPage(bookmark.position)) || null : null;
+  }
+
+  async function loadBookmarks() {
+    try {
+      bookmarks = await listBookmarks(bookId);
+      bookmarksError = '';
+    } catch (error) {
+      bookmarksError = error.message;
+    }
+    updatePageBookmark();
+  }
+
+  // A filled bookmark icon removes the page's bookmark; an empty one opens the add dialog.
+  function toggleBookmark() {
+    if (pageBookmark) { void removeBookmark(pageBookmark); return; }
+    if (!info || !paginator) return;
+    bookmarkDraft = { position: info.position, excerpt: paginator.excerptAt(info.position) };
+    bookmarkNote = '';
+    bookmarkDialogError = '';
+  }
+
+  async function saveBookmark(event) {
+    event.preventDefault();
+    if (!bookmarkDraft || bookmarkBusy) return;
+    bookmarkBusy = true;
+    bookmarkDialogError = '';
+    try {
+      const created = await addBookmark(bookId, bookmarkDraft.position, bookmarkDraft.excerpt, bookmarkNote);
+      bookmarks = [created, ...bookmarks];
+      bookmarkDraft = null;
+      updatePageBookmark();
+    } catch (error) {
+      bookmarkDialogError = error.message;
+    } finally {
+      bookmarkBusy = false;
+    }
+  }
+
+  async function removeBookmark(bookmark) {
+    try {
+      await deleteBookmark(bookmark.id);
+      bookmarks = bookmarks.filter((item) => item.id !== bookmark.id);
+      bookmarksError = '';
+    } catch (error) {
+      bookmarksError = error.message;
+      contentsTab = 'bookmarks';
+      contentsOpen = true;
+    }
+    updatePageBookmark();
+  }
+
+  function openContents() {
+    settingsOpen = false;
+    contentsOpen = !contentsOpen;
+  }
+
+  function jumpFromContents(position) {
+    contentsOpen = false;
+    toolbar = false;
+    jumpTo(position);
+  }
+
+  async function openNote(href) {
+    const rendered = book ? renderNote(book, href) : null;
+    if (!rendered) return;
+    note = { title: rendered.title || 'Note' };
+    await tick();
+    noteBody?.replaceChildren(rendered.fragment);
   }
 
   function showEnd() {
@@ -137,6 +226,7 @@
   function closeChrome() {
     toolbar = false;
     settingsOpen = false;
+    contentsOpen = false;
   }
 
   function errorText(error) {
@@ -185,7 +275,9 @@
       }
       if (Math.hypot(dx, dy) > TAP_SLOP) return;
       // While the toolbar is open, any tap on the page simply closes it.
-      if (toolbar || settingsOpen) { closeChrome(); return; }
+      if (toolbar || settingsOpen || contentsOpen) { closeChrome(); return; }
+      const marker = event.target instanceof Element ? event.target.closest('.fb-note') : null;
+      if (marker?.dataset.href) { void openNote(marker.dataset.href); return; }
       const rect = surface.getBoundingClientRect();
       const x = (event.clientX - rect.left) / rect.width;
       if (x < 1 / 3) void turn(false);
@@ -236,6 +328,7 @@
         if (startEntry?.percent >= 100) await paginator.openAtEnd();
         else await paginator.open(startEntry?.position || START);
         paginatorReady = true;
+        void loadBookmarks();
         // Re-paginate after resize or rotation, keeping the first visible paragraph.
         resizeObserver = new ResizeObserver(() => {
           clearTimeout(resizeTimer);
@@ -275,9 +368,15 @@
 
   function keydown(event) {
     if (status !== 'ready' || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
-    if (ended) {
-      // Only Escape works while the end screen is open; buttons handle their own keys.
-      if (event.key === 'Escape') ended = false;
+    // The bookmark dialog handles its own keys (Escape closes it).
+    if (bookmarkDraft) return;
+    // Overlays: only Escape works, page keys are ignored.
+    if (ended || note || contentsOpen) {
+      if (event.key === 'Escape') {
+        if (note) note = null;
+        else if (contentsOpen) contentsOpen = false;
+        else ended = false;
+      }
       return;
     }
     if (event.key === 'Escape') {
@@ -315,6 +414,34 @@
     </div>
   {/if}
 
+  {#if note}
+    <div class="note-layer">
+      <button class="note-backdrop" type="button" aria-label="Close note" onclick={() => note = null}></button>
+      <section class="note-popup" aria-labelledby="note-title">
+        <div class="note-head">
+          <h2 id="note-title">{note.title}</h2>
+          <button class="icon-button" type="button" aria-label="Close note" onclick={() => note = null}><Icon name="close" size={20} /></button>
+        </div>
+        <div class="note-body" bind:this={noteBody}></div>
+      </section>
+    </div>
+  {/if}
+
+  {#if bookmarkDraft}
+    <Modal title="Add bookmark" busy={bookmarkBusy} onclose={() => bookmarkDraft = null}>
+      <form onsubmit={saveBookmark}>
+        {#if bookmarkDraft.excerpt}<p class="bookmark-preview">{bookmarkDraft.excerpt}</p>{/if}
+        <label for="bookmark-note">Note (optional)</label>
+        <textarea id="bookmark-note" class="bookmark-note-input" rows="3" maxlength="2000" bind:value={bookmarkNote} disabled={bookmarkBusy}></textarea>
+        {#if bookmarkDialogError}<p class="alert error" role="alert">{bookmarkDialogError}</p>{/if}
+        <div class="modal-actions">
+          <button class="button secondary" type="button" onclick={() => bookmarkDraft = null} disabled={bookmarkBusy}>Cancel</button>
+          <button class="button primary" type="submit" disabled={bookmarkBusy}>{bookmarkBusy ? 'Saving…' : 'Add bookmark'}</button>
+        </div>
+      </form>
+    </Modal>
+  {/if}
+
   {#if ended && record}
     <EndOfBook book={record} onlibrary={() => navigate('/library')} onclose={() => ended = false} onrestart={readAgain} />
   {/if}
@@ -329,14 +456,20 @@
     </section>
   {/if}
 
-  {#if (toolbar || settingsOpen) && status === 'ready'}
+  {#if pageBookmark && status === 'ready'}<span class="reader-ribbon" aria-hidden="true"><Icon name="bookmark" size={20} filled /></span>{/if}
+
+  {#if (toolbar || settingsOpen || contentsOpen) && status === 'ready'}
     <header class="reader-bar reader-top">
       <button class="icon-button" type="button" onclick={() => navigate('/library')} aria-label="Back to library" title="Back to library"><Icon name="back" /></button>
       <div class="reader-titles">
         <span class="reader-book-title">{record?.title}</span>
         <span class="reader-chapter-title">{#if chapterTitle && chapterTitle !== record?.title}{chapterTitle} · {/if}{chapterLeftLabel}</span>
       </div>
-      <button class="icon-button reader-settings-button" class:active={settingsOpen} type="button" onclick={() => settingsOpen = !settingsOpen}
+      <button class="icon-button" class:active={contentsOpen} type="button" onclick={openContents}
+        aria-expanded={contentsOpen} aria-label="Contents and bookmarks" title="Contents and bookmarks"><Icon name="contents" /></button>
+      <button class="icon-button" class:active={!!pageBookmark} type="button" onclick={toggleBookmark} aria-pressed={!!pageBookmark}
+        aria-label={pageBookmark ? 'Remove bookmark' : 'Add bookmark'} title={pageBookmark ? 'Remove bookmark' : 'Add bookmark'}><Icon name="bookmark" filled={!!pageBookmark} /></button>
+      <button class="icon-button reader-settings-button" class:active={settingsOpen} type="button" onclick={() => { contentsOpen = false; settingsOpen = !settingsOpen; }}
         aria-expanded={settingsOpen} aria-label="Reader settings" title="Reader settings"><span aria-hidden="true">Aa</span></button>
       {#if canFullscreen}
         <button class="icon-button reader-fullscreen" type="button" onclick={toggleFullscreen} aria-pressed={fullscreenActive}
@@ -345,7 +478,10 @@
         </button>
       {/if}
     </header>
-    {#if settingsOpen}
+    {#if contentsOpen && book}
+      <ReaderContents {book} {bookmarks} position={info?.position} bookPages={info?.bookPages || 1} bind:tab={contentsTab} error={bookmarksError}
+        onjump={jumpFromContents} ondelete={removeBookmark} onclose={() => contentsOpen = false} />
+    {:else if settingsOpen}
       <ReaderSettings {canFullscreen} {fullscreenActive} onfullscreen={toggleFullscreen} onclose={() => settingsOpen = false} />
     {:else}
       <footer class="reader-bar reader-bottom">

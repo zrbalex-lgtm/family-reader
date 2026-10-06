@@ -1,5 +1,5 @@
 <script>
-  let { name = 'book', size = 22 } = $props();
+  let { name = 'book', size = 22, filled = false } = $props();
   const paths = {
     book: 'M12 6c-3-2-6-2-9-1v15c3-1 6-1 9 1m0-15c3-2 6-2 9-1v15c-3-1-6-1-9 1V6Z',
     settings: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm-2-5h4l.7 3 2 .9L19.4 6l2 3.5-2.1 2v2l2.1 2-2 3.5-2.7-.9-2 .9-.7 3h-4l-.7-3-2-.9-2.7.9-2-3.5 2.1-2v-2l-2.1-2 2-3.5 2.7.9 2-.9.7-3Z',
@@ -19,10 +19,12 @@
     collapse: 'M9 4v5H4m11-5v5h5M9 20v-5H4m11 5v-5h5',
     grid: 'M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z',
     list: 'M4 6h3m-3 6h3m-3 6h3M10 6h10m-10 6h10m-10 6h10',
+    bookmark: 'M6 3h12v18l-6-4.5L6 21V3Z',
+    contents: 'M4 6h16M4 12h10M4 18h13',
     refresh: 'M20 8a8 8 0 0 0-14-3L3 8m0-5v5h5m-4 8a8 8 0 0 0 14 3l3-3m0 5v-5h-5',
   };
 </script>
 
-<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<svg width={size} height={size} viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
   <path d={paths[name] || paths.book} />
 </svg>

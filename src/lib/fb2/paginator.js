@@ -236,6 +236,21 @@ export class Paginator {
     return false;
   }
 
+  // Text of a paragraph from the given position, for bookmark excerpts.
+  excerptAt(position, length = 160) {
+    if (position.section !== this.section) return '';
+    const element = this.leafElement(position.paragraph);
+    const text = (element?.textContent || '').slice(position.charOffset).replace(/\s+/g, ' ').trim();
+    return text.length > length ? text.slice(0, length).replace(/\s\S*$/, '') + '…' : text;
+  }
+
+  // True when a stored position falls on the page currently shown.
+  isOnCurrentPage(position) {
+    const chunk = this.currentChunk;
+    if (!position || position.section !== this.section || position.paragraph < chunk.firstLeaf || position.paragraph >= chunk.endLeaf) return false;
+    return this.pageFor(position) === this.pageIndex;
+  }
+
   // Reader setting: the smallest side margin in CSS pixels. Call relayout() afterwards.
   setMinMargin(pixels) {
     this.minMargin = Math.max(0, Math.round(pixels) || MIN_MARGIN);

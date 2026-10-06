@@ -171,3 +171,58 @@
 .end-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .6rem; margin-top: 1.8rem; font-family: var(--font-ui); }
 .end-actions .button.secondary { color: var(--text); }
 @media (max-width: 420px) { .end-actions { flex-direction: column; align-self: stretch; } }
+
+/* Stage 5: bookmarks, contents and footnotes. */
+.reader-bar .icon-button.active { color: var(--accent); }
+/* A larger, invisible hit area makes small note markers easy to tap. */
+.fb-flow .fb-note { padding: .35em .3em; margin: -.35em -.3em; cursor: pointer; }
+.reader-ribbon { position: absolute; z-index: 1; top: env(safe-area-inset-top); right: max(.6rem, env(safe-area-inset-right)); color: var(--reader-accent, var(--accent)); opacity: .85; pointer-events: none; }
+
+.reader-contents {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
+  display: flex; flex-direction: column; height: min(80vh, 640px);
+  background: rgba(16, 21, 25, .98); color: var(--text); border-top: 1px solid var(--border); border-radius: 16px 16px 0 0;
+  padding: .6rem max(1rem, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(1rem, env(safe-area-inset-left));
+  font: 400 .9375rem/1.4 var(--font-ui);
+}
+@media (min-width: 700px) { .reader-contents { left: max(1rem, env(safe-area-inset-left)); right: auto; bottom: calc(env(safe-area-inset-bottom) + 1rem); width: 420px; border: 1px solid var(--border); border-radius: 14px; } }
+.reader-contents-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding-bottom: .4rem; border-bottom: 1px solid var(--border); }
+.contents-tabs { display: flex; gap: 1.2rem; }
+.contents-tabs button { border: 0; background: transparent; color: var(--muted); padding: .6rem 0; min-height: 44px; border-bottom: 2px solid transparent; font-size: .9375rem; }
+.contents-tabs button.active { color: var(--text); border-bottom-color: var(--accent); }
+.reader-contents-list { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: .3rem 0 1rem; }
+.toc-list, .bookmark-list { list-style: none; margin: 0; padding: 0; }
+.toc-entry { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; width: 100%; min-height: 44px; padding: .55rem .4rem; border: 0; border-radius: 8px; background: transparent; text-align: left; }
+.toc-entry:hover { background: var(--surface-hover); }
+.toc-entry.current { color: var(--accent); background: var(--surface); }
+.toc-entry.level-1 { padding-left: 1.4rem; }
+.toc-entry.level-2, .toc-entry.level-3 { padding-left: 2.4rem; font-size: .875rem; }
+.toc-label { min-width: 0; overflow-wrap: anywhere; }
+.toc-page { flex-shrink: 0; color: var(--muted); font-size: .75rem; font-variant-numeric: tabular-nums; }
+.bookmark-item { display: flex; align-items: flex-start; gap: .25rem; border-bottom: 1px solid var(--border); }
+.bookmark-open { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .3rem; padding: .7rem .4rem; border: 0; background: transparent; text-align: left; }
+.bookmark-meta { color: var(--muted); font-size: .75rem; }
+.bookmark-excerpt { font-family: var(--font-reading); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.bookmark-note { color: var(--accent); font-size: .875rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.contents-empty { color: var(--muted); padding: 1.5rem .4rem; text-align: center; }
+
+.bookmark-preview { font-family: var(--font-reading); color: var(--muted); border-left: 2px solid var(--accent); padding: .2rem 0 .2rem .8rem; margin-bottom: 1.2rem; }
+.bookmark-note-input { width: 100%; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); padding: .7rem .9rem; font: inherit; resize: vertical; }
+.bookmark-note-input:focus { border-color: var(--accent); outline: none; }
+
+.note-layer { position: absolute; inset: 0; z-index: 6; display: flex; align-items: flex-end; justify-content: center; }
+@media (min-width: 700px) { .note-layer { align-items: center; } }
+.note-backdrop { position: absolute; inset: 0; border: 0; background: rgba(0, 0, 0, .45); }
+.note-popup {
+  position: relative; width: min(100%, 560px); max-height: min(70vh, 520px); overflow-y: auto; overscroll-behavior: contain;
+  background: var(--reader-bg); color: var(--reader-text); border: 1px solid var(--border); border-radius: 16px 16px 0 0;
+  padding: .8rem max(1.25rem, env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 1.2rem) max(1.25rem, env(safe-area-inset-left));
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, .35);
+}
+@media (min-width: 700px) { .note-popup { border-radius: 14px; padding-bottom: 1.4rem; } }
+.note-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .4rem; }
+.note-head h2 { font: 600 .9375rem/1.4 var(--font-ui); color: var(--reader-muted); }
+.note-body { font-family: var(--reader-font); font-size: calc(var(--reader-font-size) * .92); line-height: var(--reader-line-height); }
+.note-body p { margin: 0 0 .5em; }
+.note-body .fb-v { padding-left: 1.5em; text-indent: -1.5em; margin: 0; }
+.note-body img { max-width: 100%; height: auto; }

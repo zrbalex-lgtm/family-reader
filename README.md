@@ -1,8 +1,8 @@
-# Family Reader — Stage 4
+# Family Reader — Stage 5
 
 A private family library for FB2 books and DOCX songbooks. Built with **Vite, Svelte 5, JavaScript ES modules and Supabase v2**, for **GitHub Pages**.
 
-**Stages 1–3 are done. Stage 4 (reader settings, progress sync, Continue reading) is implemented and awaiting testing — see [docs/STAGE_4.md](docs/STAGE_4.md). Stop here before Stage 5.**
+**Stages 1–4 are done. Stage 5 (bookmarks, table of contents, footnotes) is implemented and awaiting testing — see [docs/STAGE_5.md](docs/STAGE_5.md). Stop here before Stage 6.**
 
 Already running Stage 1? Start with [the Stage 2 upgrade and test guide](docs/STAGE_2.md). No database migration or new repository variables are needed.
 
@@ -188,6 +188,9 @@ src/lib/idb.js               Small IndexedDB key-value wrapper
 src/lib/device.js            Device class and label
 src/lib/fullscreen.js        Fullscreen API helpers
 src/components/ReaderSettings.svelte  Reader settings sheet
+src/components/ReaderContents.svelte  Contents and bookmarks sheet
+src/components/EndOfBook.svelte       End-of-book screen
+src/lib/bookmarks.js         Private bookmarks via Supabase
 src/reader.css               Reader styling
 src/lib/supabase.js          Public Supabase client
 src/lib/auth.js              Session/profile lifecycle
@@ -212,6 +215,7 @@ docs/BUILD_SPEC.md           Requirements and stage boundaries
 docs/STAGE_2.md              Upgrade instructions and deployed-site checks
 docs/STAGE_3.md              FB2 reader test checklist
 docs/STAGE_4.md              Settings and sync test checklist
+docs/STAGE_5.md              Bookmarks, contents and footnotes checklist
 ```
 
 ## Implementation order
@@ -219,8 +223,8 @@ docs/STAGE_4.md              Settings and sync test checklist
 1. **Complete:** skeleton, SQL/RLS, login, Pages workflow.
 2. **Complete:** upload, metadata, covers, duplicates, search, delete.
 3. **Complete:** FB2 byte decoding, parsing, rendering, pagination, navigation.
-4. **Implemented; awaiting testing:** reader settings, progress sync and Continue reading.
-5. Bookmarks, table of contents and footnotes.
+4. **Complete:** reader settings, progress sync and Continue reading.
+5. **Implemented; awaiting testing:** bookmarks, table of contents and footnotes.
 6. DOCX viewer, dark mode, zoom, search, wake lock and remembered position.
 7. PWA shell, installation, IndexedDB cache/queue and offline polish.
 

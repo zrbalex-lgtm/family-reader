@@ -123,6 +123,15 @@ export async function openFb2Book(bytes, zipped) {
   }
 
   const lang = textOf(child(child(child(root, 'description'), 'title-info'), 'lang')) || '';
+  // Footnotes and comments live in separate bodies; index their sections by id.
+  const notes = new Map();
+  for (const notesBody of children(root, 'body').filter((node) => SKIPPED_BODIES.test(node.getAttribute('name') || ''))) {
+    for (const section of notesBody.getElementsByTagNameNS('*', 'section')) {
+      const id = section.getAttribute('id');
+      if (id && !notes.has(id)) notes.set(id, section);
+    }
+  }
+  const noteFor = (href) => (href?.startsWith('#') ? notes.get(href.slice(1)) || null : null);
   const binaries = new Map(children(root, 'binary').map((node) => [node.getAttribute('id'), node]));
   const urls = new Map();
 
@@ -130,6 +139,8 @@ export async function openFb2Book(bytes, zipped) {
     lang,
     sections,
     totalChars,
+    toc: buildToc(sections),
+    note: noteFor,
     // Blob URLs are created lazily on first render and revoked in dispose().
     imageUrl(href) {
       if (!href?.startsWith('#')) return null;
@@ -145,6 +156,33 @@ export async function openFb2Book(bytes, zipped) {
       urls.clear();
     },
   };
+}
+
+// Table of contents from chapter and sub-chapter titles, each with a stable position.
+function buildToc(sections) {
+  const entries = [];
+  sections.forEach((section, sectionIndex) => {
+    let titled = false;
+    const visit = (items) => {
+      for (const item of items) {
+        if (item.type !== 'box') continue;
+        if (item.kind === 'title') {
+          const label = item.items.filter((leaf) => leaf.kind === 'title-line').map((leaf) => textOf(leaf.node)).filter(Boolean).join(' · ');
+          if (label) {
+            entries.push({ label, level: Math.max(0, item.level - 1), position: { section: sectionIndex, paragraph: item.firstLeaf, charOffset: 0 } });
+            titled = true;
+          }
+        } else if (item.kind !== 'poem' && item.kind !== 'stanza') {
+          visit(item.items);
+        }
+      }
+    };
+    visit(section.items);
+    if (!titled && sectionIndex > 0) {
+      entries.push({ label: 'Section ' + (sectionIndex + 1), level: 0, position: { section: sectionIndex, paragraph: 0, charOffset: 0 } });
+    }
+  });
+  return entries;
 }
 
 export function clampPosition(book, position) {

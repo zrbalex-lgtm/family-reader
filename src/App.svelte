@@ -10,6 +10,7 @@
   import Settings from './routes/Settings.svelte';
   import Reader from './routes/Reader.svelte';
   import { setLibraryUser, uploads } from './lib/library.js';
+  import { setSyncUser, startProgressSync } from './lib/sync.js';
 
   let online = $state(navigator.onLine);
   const name = $derived(displayName($auth));
@@ -20,11 +21,12 @@
   onMount(() => {
     const stopRouter = startRouter();
     const stopAuth = startAuth();
+    const stopSync = startProgressSync();
     const updateOnline = () => { online = navigator.onLine; };
     window.addEventListener('online', updateOnline);
     window.addEventListener('offline', updateOnline);
     return () => {
-      stopRouter(); stopAuth();
+      stopRouter(); stopAuth(); stopSync();
       window.removeEventListener('online', updateOnline);
       window.removeEventListener('offline', updateOnline);
     };
@@ -36,7 +38,10 @@
     if ($auth.session && $route === '/login') navigate('/library', { replace: true });
   });
 
-  $effect(() => { setLibraryUser($auth.session?.user.id || null); });
+  $effect(() => {
+    setLibraryUser($auth.session?.user.id || null);
+    setSyncUser($auth.session?.user.id || null);
+  });
 </script>
 
 <svelte:window onbeforeunload={(event) => {

@@ -1,6 +1,6 @@
 # Family Reader — continuing requirements
 
-Build only the stage the user requests. Stop after each stage, summarize, and wait for testing before proceeding. Stages 1 and 2 are complete. Stage 3 is implemented; wait for the user to test before Stage 4. Run automated tests/builds in GitHub Actions only; do not run local tests, builds or browser previews unless the user changes this instruction. Do not silently substitute another hosting provider or framework.
+Build only the stage the user requests. Stop after each stage, summarize, and wait for testing before proceeding. Stages 1–3 are complete. Stage 4 is implemented; wait for the user to test before Stage 5. Run automated tests/builds in GitHub Actions only; do not run local tests, builds or browser previews unless the user changes this instruction. Do not silently substitute another hosting provider or framework.
 
 ## Fixed architecture
 

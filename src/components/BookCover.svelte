@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import { supabase } from '../lib/supabase.js';
   import Icon from './Icon.svelte';
-  let { book } = $props();
+  // progress: reading percent 0–100, or null when the book has not been opened.
+  let { book, progress = null } = $props();
   let frame = $state();
   let url = $state('');
   let failed = $state(false);
@@ -47,4 +48,5 @@
     </span>
   {/if}
   <span class="format-tag">{book.kind.toUpperCase()}</span>
+  {#if progress !== null && progress > 0}<span class="cover-progress"><span style:width={Math.min(100, progress) + '%'}></span></span>{/if}
 </span>

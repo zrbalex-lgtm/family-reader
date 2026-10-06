@@ -52,6 +52,6 @@ Push to `main` and wait for **Deploy Family Reader to GitHub Pages** to finish. 
 
 ## Scope boundary
 
-Reader settings (fonts, themes, sizes), saved and synced progress, Continue reading and progress badges are Stage 4. Bookmarks, table of contents and footnote popups are Stage 5. The code is prepared for them: typography uses `--reader-*` CSS variables plus `Paginator.relayout()`, positions flow through `src/lib/reading-position.js`, every block has `data-p`, and note links keep their `data-href`.
+Reader settings (fonts, themes, sizes), saved and synced progress, Continue reading and progress badges are Stage 4. Bookmarks, table of contents and footnote popups are Stage 5. The code is prepared for them: typography uses `--reader-*` CSS variables plus `Paginator.relayout()`, positions flow through `src/lib/reading-position.js` (replaced by `src/lib/sync.js` in Stage 4), every block has `data-p`, and note links keep their `data-href`.
 
 Stop and wait for testing before Stage 4.

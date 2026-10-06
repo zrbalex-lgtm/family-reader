@@ -64,6 +64,7 @@ export class Paginator {
     this.pages = 1;
     this.width = 0;
     this.leaves = [];
+    this.minMargin = MIN_MARGIN;
     this.charsPerPage = 0;
     this.densityArea = 0;
     this.token = 0;
@@ -112,8 +113,8 @@ export class Paginator {
     const height = Math.max(1, this.page.clientHeight);
     const spread = width >= SPREAD_MIN_WIDTH && width > height;
     const margin = spread
-      ? Math.max(MIN_MARGIN * 2, Math.floor((width - 2 * MAX_SPREAD_LINE) / 4))
-      : Math.max(MIN_MARGIN, Math.floor((width - MAX_LINE) / 2));
+      ? Math.max(this.minMargin * 2, Math.floor((width - 2 * MAX_SPREAD_LINE) / 4))
+      : Math.max(this.minMargin, Math.floor((width - MAX_LINE) / 2));
     // Column gap = 2 × margin, so one page stride equals exactly the page width.
     this.width = width;
     const style = this.flow.style;
@@ -229,7 +230,12 @@ export class Paginator {
     return false;
   }
 
-  // Call after resize, rotation or (in Stage 4) reader setting changes.
+  // Reader setting: the smallest side margin in CSS pixels. Call relayout() afterwards.
+  setMinMargin(pixels) {
+    this.minMargin = Math.max(0, Math.round(pixels) || MIN_MARGIN);
+  }
+
+  // Call after resize, rotation or reader setting changes.
   relayout() {
     if (this.busy) return;
     const position = this.position();

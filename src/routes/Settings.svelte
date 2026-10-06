@@ -2,12 +2,15 @@
   import Icon from '../components/Icon.svelte';
   import { auth, saveDisplayName, signOut } from '../lib/auth.js';
   import { usernameFromUser } from '../lib/username.js';
+  import { loadReaderSettings, resetReaderSettings, currentDeviceClass } from '../lib/reader-settings.js';
 
   let name = $state('');
   let saving = $state(false);
   let signingOut = $state(false);
   let error = $state('');
   let saved = $state(false);
+  let readerReset = $state(false);
+  $effect(() => { void loadReaderSettings($auth.session?.user.id); });
   $effect(() => { name = $auth.profile?.display_name || usernameFromUser($auth.session?.user); });
 
   async function save(event) {
@@ -46,6 +49,10 @@
       </div>
     </form>
     {#if error}<p class="alert error" role="alert">{error}</p>{/if}
+  </section>
+  <section class="settings-card signout-card" aria-labelledby="reader-title">
+    <div><h2 id="reader-title">Reader</h2><p class="muted">Fonts, size, spacing and theme are changed inside a book with the Aa button. They are saved separately for each device type; this device is a {currentDeviceClass()}.</p></div>
+    <button class="button secondary" type="button" onclick={() => { resetReaderSettings(); readerReset = true; }}>{readerReset ? 'Reset done' : 'Reset reader settings'}</button>
   </section>
   <section class="settings-card signout-card" aria-labelledby="signout-title">
     <div><h2 id="signout-title">Sign out</h2><p class="muted">Sign out on this device.</p></div>

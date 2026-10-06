@@ -1,6 +1,4 @@
-// Full-screen reading support. The preference is stored locally for now and moves into
-// reader settings in Stage 4.
-const PREFERENCE_KEY = 'family-reader:reader-fullscreen';
+// Full-screen reading support. The on/off preference lives in reader settings.
 
 const root = () => document.documentElement;
 
@@ -47,12 +45,4 @@ export function onFullscreenChange(callback) {
     document.removeEventListener('fullscreenchange', callback);
     document.removeEventListener('webkitfullscreenchange', callback);
   };
-}
-
-export function fullscreenPreference() {
-  try { return localStorage.getItem(PREFERENCE_KEY) === 'on'; } catch { return false; }
-}
-
-export function setFullscreenPreference(value) {
-  try { localStorage.setItem(PREFERENCE_KEY, value ? 'on' : 'off'); } catch { /* Storage unavailable: keep the session value only. */ }
 }

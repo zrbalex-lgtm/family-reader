@@ -1,8 +1,8 @@
-# Family Reader — Stage 3
+# Family Reader — Stage 4
 
 A private family library for FB2 books and DOCX songbooks. Built with **Vite, Svelte 5, JavaScript ES modules and Supabase v2**, for **GitHub Pages**.
 
-**Stages 1–2 are done. Stage 3 (FB2 reader) is implemented and awaiting testing — see [docs/STAGE_3.md](docs/STAGE_3.md). Stop here before Stage 4.**
+**Stages 1–3 are done. Stage 4 (reader settings, progress sync, Continue reading) is implemented and awaiting testing — see [docs/STAGE_4.md](docs/STAGE_4.md). Stop here before Stage 5.**
 
 Already running Stage 1? Start with [the Stage 2 upgrade and test guide](docs/STAGE_2.md). No database migration or new repository variables are needed.
 
@@ -167,7 +167,7 @@ The SQL tests execute the actual migration twice in an isolated PostgreSQL engin
 
 Deleting a book cascades to progress and bookmarks. Deleting database rows does not delete Storage bytes: the app calls the Storage API for the file and cover and records unfinished cleanup for retry. Do not delete `storage.objects` directly with SQL.
 
-The session is stored by supabase-js in browser localStorage, isolated by project and base path. Raw passwords are passed only to Supabase Auth and are never logged or persisted by the app. Future IndexedDB caches and sync queues must also be isolated by user for personal records and cleared or separated on logout.
+The session is stored by supabase-js in browser localStorage, isolated by project and base path. Raw passwords are passed only to Supabase Auth and are never logged or persisted by the app. IndexedDB progress, the sync queue and reader settings are keyed by project, base path and user id. They are separated, not cleared, on logout so unsent progress is not lost; Stage 7 adds cache lifecycle and safe account switching.
 
 ## Project structure
 
@@ -182,7 +182,12 @@ src/routes/Reader.svelte     FB2 reader screen, gestures and toolbar
 src/lib/fb2/book.js          FB2 reading model, chunks and positions
 src/lib/fb2/render.js        Safe FB2 → DOM translation
 src/lib/fb2/paginator.js     CSS-column pagination
-src/lib/reading-position.js  In-memory reading positions
+src/lib/sync.js              Reading progress: IndexedDB queue and Supabase sync
+src/lib/reader-settings.js   Reader themes, fonts and per-device settings
+src/lib/idb.js               Small IndexedDB key-value wrapper
+src/lib/device.js            Device class and label
+src/lib/fullscreen.js        Fullscreen API helpers
+src/components/ReaderSettings.svelte  Reader settings sheet
 src/reader.css               Reader styling
 src/lib/supabase.js          Public Supabase client
 src/lib/auth.js              Session/profile lifecycle
@@ -206,19 +211,20 @@ tests/                       Tests executed by GitHub Actions
 docs/BUILD_SPEC.md           Requirements and stage boundaries
 docs/STAGE_2.md              Upgrade instructions and deployed-site checks
 docs/STAGE_3.md              FB2 reader test checklist
+docs/STAGE_4.md              Settings and sync test checklist
 ```
 
 ## Implementation order
 
 1. **Complete:** skeleton, SQL/RLS, login, Pages workflow.
 2. **Complete:** upload, metadata, covers, duplicates, search, delete.
-3. **Implemented; awaiting testing:** FB2 byte decoding, parsing, rendering, pagination, navigation.
-4. Reader settings, progress sync and Continue reading.
+3. **Complete:** FB2 byte decoding, parsing, rendering, pagination, navigation.
+4. **Implemented; awaiting testing:** reader settings, progress sync and Continue reading.
 5. Bookmarks, table of contents and footnotes.
 6. DOCX viewer, dark mode, zoom, search, wake lock and remembered position.
 7. PWA shell, installation, IndexedDB cache/queue and offline polish.
 
-JSZip is included. Later stages will add docx-preview, Dexie or idb-keyval, and vite-plugin-pwa. Do not register a service worker before the PWA stage. Each stage requires a separate test-and-review handoff before continuing.
+JSZip is included. IndexedDB uses a small built-in wrapper; reader web fonts load on demand from Google Fonts. Later stages will add docx-preview and vite-plugin-pwa. Do not register a service worker before the PWA stage. Each stage requires a separate test-and-review handoff before continuing.
 
 ## Troubleshooting
 

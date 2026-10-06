@@ -8,8 +8,14 @@
   import { filterAndSortBooks } from '../lib/library-query.js';
   import { ACCEPTED_FILES, formatBytes } from '../lib/files.js';
   import { navigate } from '../lib/router.js';
+  import { progress, refreshProgress } from '../lib/sync.js';
 
   const VIEW_KEY = 'family-reader:library-view';
+  const FINISHED = 99.5;
+
+  function progressLabel(percent) {
+    return percent >= FINISHED ? 'Finished' : Math.floor(percent) + '%';
+  }
 
   let kind = $state('fb2');
   let search = $state('');
@@ -25,12 +31,17 @@
   let notice = $state('');
   const visible = $derived(filterAndSortBooks($library.books, kind, search, sort));
   const count = $derived($library.books.filter((book) => book.kind === kind).length);
+  // Books with saved progress, most recently read first; finished books drop out of the row.
+  const continueBooks = $derived(kind !== 'fb2' || search ? [] : $library.books
+    .filter((book) => book.kind === 'fb2' && $progress.has(book.id) && $progress.get(book.id).percent < FINISHED)
+    .sort((a, b) => $progress.get(b.id).updatedAt - $progress.get(a.id).updatedAt)
+    .slice(0, 12));
   const uploading = $derived($uploads.some((row) => ['queued', 'processing'].includes(row.status)));
 
   onMount(() => {
     const refresh = () => {
       online = navigator.onLine;
-      if (document.visibilityState === 'visible' && online) { void refreshLibrary(); void retryCleanup(); }
+      if (document.visibilityState === 'visible' && online) { void refreshLibrary(); void retryCleanup(); void refreshProgress(); }
     };
     window.addEventListener('online', refresh);
     window.addEventListener('focus', refresh);
@@ -149,6 +160,25 @@
   {/if}
   <UploadQueue />
 
+  {#if continueBooks.length}
+    <section class="continue-reading" aria-labelledby="continue-title">
+      <h2 id="continue-title">Continue reading</h2>
+      <div class="continue-row">
+        {#each continueBooks as book (book.id)}
+          {@const percent = $progress.get(book.id).percent}
+          <button class="continue-card" type="button" onclick={() => navigate('/read/' + book.id)} aria-label={'Continue ' + book.title + ', ' + progressLabel(percent)}>
+            <BookCover {book} progress={percent} />
+            <span class="continue-text">
+              <span class="book-title">{book.title}</span>
+              <span class="book-author">{book.author || 'Unknown author'}</span>
+              <span class="continue-percent">{progressLabel(percent)}</span>
+            </span>
+          </button>
+        {/each}
+      </div>
+    </section>
+  {/if}
+
   {#if $library.loading && !$library.books.length}
     <div class="library-loading" role="status">Loading your library…</div>
   {:else if !visible.length}
@@ -165,14 +195,13 @@
       {#each visible as book (book.id)}
         <article class="book-card">
           <button class="book-open" type="button" onclick={() => openBook(book)} aria-label={(book.kind === 'fb2' ? 'Read ' : 'View details for ') + book.title}>
-            <BookCover {book} />
+            <BookCover {book} progress={$progress.get(book.id)?.percent ?? null} />
             <span class="book-title">{book.title}</span>
             <span class="book-author">{book.author || (book.kind === 'docx' ? 'Document' : 'Unknown author')}</span>
             {#if book.series}<span class="book-series-line">{book.series}{#if book.series_index !== null} · {book.series_index}{/if}</span>{/if}
           </button>
           <div class="book-card-footer">
-            <!-- Reading progress is filled in Stage 4. -->
-            <span class="book-progress"></span>
+            <span class="book-progress">{#if $progress.has(book.id)}{progressLabel($progress.get(book.id).percent)}{/if}</span>
             <span class="book-series">{book.series || formatBytes(book.size_bytes)}{#if book.series && book.series_index !== null} · {book.series_index}{/if}</span>
             {#if book.kind === 'fb2'}<button class="icon-button details-book" type="button" aria-label={'Details for ' + book.title} title="Book details" onclick={() => selected = book}><Icon name="info" size={18} /></button>{/if}
             <button class="icon-button delete-book" type="button" aria-label={'Delete ' + book.title} title="Delete from library" onclick={() => confirmDelete(book)} disabled={!online}><Icon name="trash" size={18} /></button>

@@ -125,3 +125,22 @@ select:focus-visible, dialog:focus-visible { outline: 2px solid var(--accent); o
   .detail-cover .text-cover-title { -webkit-line-clamp: 3; font-size: .875rem; }
   .detail-cover .text-cover-author { display: none; }
 }
+
+/* Reading progress (Stage 4). */
+.cover-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: #00000080; }
+.cover-progress span { display: block; height: 100%; background: var(--accent); }
+.book-progress { flex-shrink: 0; color: var(--accent); font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.book-card-footer .book-progress + .book-series { margin-right: auto; }
+.continue-reading { margin: 1.6rem 0 .4rem; }
+.continue-reading h2 { margin-bottom: .9rem; }
+.continue-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 300px); gap: 1rem; overflow-x: auto; padding-bottom: .5rem; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+.continue-card { display: flex; gap: .9rem; align-items: center; text-align: left; padding: .6rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); scroll-snap-align: start; min-width: 0; }
+.continue-card:hover { background: var(--surface-hover); }
+.continue-card .book-cover { width: 58px; flex-shrink: 0; border-radius: 5px; }
+.continue-card .text-cover-title, .continue-card .text-cover-author, .continue-card .format-tag { display: none; }
+.continue-card .text-cover { padding: 0; align-items: center; }
+.continue-text { display: flex; flex-direction: column; min-width: 0; }
+.continue-text .book-title { margin-top: 0; -webkit-line-clamp: 2; }
+.continue-text .book-author { -webkit-line-clamp: 1; margin-top: .1rem; }
+.continue-percent { color: var(--accent); font-size: .8125rem; margin-top: .3rem; }
+.book-list .book-progress { min-width: 3.6rem; text-align: right; }

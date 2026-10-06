@@ -23,11 +23,12 @@
   -webkit-touch-callout: none;
 }
 
-/* The page box: everything inside the safe area minus the vertical reading margins. */
+/* The page box fills the viewport inside the safe areas with only small reading margins.
+   Toolbars are overlays and never change its size, so showing them never re-paginates. */
 .reader-page {
   position: absolute;
-  top: calc(env(safe-area-inset-top) + 2.25rem);
-  bottom: calc(env(safe-area-inset-bottom) + 2.25rem);
+  top: calc(env(safe-area-inset-top) + 1rem);
+  bottom: calc(env(safe-area-inset-bottom) + 1.5rem);
   left: env(safe-area-inset-left);
   right: env(safe-area-inset-right);
   overflow: hidden;
@@ -90,7 +91,7 @@
 .reader-bar { position: absolute; left: 0; right: 0; z-index: 2; display: flex; align-items: center; gap: .75rem; background: rgba(16, 21, 25, .96); color: var(--text); font: 400 .875rem/1.4 var(--font-ui); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .reader-top { top: 0; border-bottom: 1px solid var(--border); padding: calc(env(safe-area-inset-top) + .35rem) max(.75rem, env(safe-area-inset-right)) .35rem max(.5rem, env(safe-area-inset-left)); }
 .reader-bottom { bottom: 0; border-top: 1px solid var(--border); padding: .35rem max(1rem, env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + .35rem) max(1rem, env(safe-area-inset-left)); }
-.reader-titles { display: flex; flex-direction: column; min-width: 0; }
+.reader-titles { display: flex; flex: 1; flex-direction: column; min-width: 0; }
 .reader-book-title, .reader-chapter-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .reader-book-title { font-weight: 550; }
 .reader-chapter-title { color: var(--muted); font-size: .8125rem; }
@@ -98,3 +99,15 @@
 .reader-percent { min-width: 2.6rem; text-align: right; }
 .reader-bar .reader-slider { flex: 1; min-width: 0; min-height: 44px; padding: 0; border: 0; background: transparent; accent-color: var(--accent); }
 @media (max-width: 420px) { .reader-page-label { font-size: .8125rem; } }
+
+/* Subtle position hint shown while the toolbars are hidden; it sits in the bottom reading margin. */
+.reader-indicator {
+  position: absolute;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: calc(env(safe-area-inset-bottom) + .3rem);
+  color: var(--reader-muted);
+  font: 400 .72rem/1.2 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  opacity: .8;
+  pointer-events: none;
+}

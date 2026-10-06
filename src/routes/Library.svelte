@@ -9,9 +9,12 @@
   import { ACCEPTED_FILES, formatBytes } from '../lib/files.js';
   import { navigate } from '../lib/router.js';
 
+  const VIEW_KEY = 'family-reader:library-view';
+
   let kind = $state('fb2');
   let search = $state('');
   let sort = $state('recent');
+  let view = $state(savedView());
   let picker = $state();
   let dragDepth = $state(0);
   let online = $state(navigator.onLine);
@@ -82,6 +85,14 @@
     } catch (error) { deleteError = error.message; }
     finally { deleteBusy = false; }
   }
+  // Grid/List choice is remembered per browser.
+  function savedView() {
+    try { return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'grid'; } catch { return 'grid'; }
+  }
+  function setView(next) {
+    view = next;
+    try { localStorage.setItem(VIEW_KEY, next); } catch { /* Storage unavailable: keep the choice for this visit. */ }
+  }
   function openBook(book) {
     if (book.kind === 'fb2') navigate('/read/' + book.id);
     else selected = book;
@@ -124,6 +135,10 @@
       <label for="library-sort">Sort by</label>
       <select id="library-sort" bind:value={sort}><option value="recent">Recently added</option><option value="title">Title</option><option value="author">Author</option></select>
     </div>
+    <div class="view-toggle" role="group" aria-label="Library layout">
+      <button class="icon-button" type="button" class:active={view === 'grid'} aria-pressed={view === 'grid'} aria-label="Grid view" title="Grid view" onclick={() => setView('grid')}><Icon name="grid" size={20} /></button>
+      <button class="icon-button" type="button" class:active={view === 'list'} aria-pressed={view === 'list'} aria-label="List view" title="List view" onclick={() => setView('list')}><Icon name="list" size={20} /></button>
+    </div>
     <button class="icon-button refresh-button" type="button" onclick={refreshLibrary} aria-label="Refresh library" title="Refresh library" disabled={$library.loading || !online}><Icon name="refresh" size={21} /></button>
   </div>
 
@@ -146,15 +161,18 @@
     </section>
   {:else}
     <p class="results-count" aria-live="polite">{search ? visible.length + ' of ' + count : count} {kind === 'fb2' ? (count === 1 ? 'book' : 'books') : (count === 1 ? 'document' : 'documents')}{#if $library.loading} · Refreshing…{/if}</p>
-    <div class="book-grid">
+    <div class={view === 'list' ? 'book-list' : 'book-grid'}>
       {#each visible as book (book.id)}
         <article class="book-card">
           <button class="book-open" type="button" onclick={() => openBook(book)} aria-label={(book.kind === 'fb2' ? 'Read ' : 'View details for ') + book.title}>
             <BookCover {book} />
             <span class="book-title">{book.title}</span>
             <span class="book-author">{book.author || (book.kind === 'docx' ? 'Document' : 'Unknown author')}</span>
+            {#if book.series}<span class="book-series-line">{book.series}{#if book.series_index !== null} · {book.series_index}{/if}</span>{/if}
           </button>
           <div class="book-card-footer">
+            <!-- Reading progress is filled in Stage 4. -->
+            <span class="book-progress"></span>
             <span class="book-series">{book.series || formatBytes(book.size_bytes)}{#if book.series && book.series_index !== null} · {book.series_index}{/if}</span>
             {#if book.kind === 'fb2'}<button class="icon-button details-book" type="button" aria-label={'Details for ' + book.title} title="Book details" onclick={() => selected = book}><Icon name="info" size={18} /></button>{/if}
             <button class="icon-button delete-book" type="button" aria-label={'Delete ' + book.title} title="Delete from library" onclick={() => confirmDelete(book)} disabled={!online}><Icon name="trash" size={18} /></button>

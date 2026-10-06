@@ -15,6 +15,10 @@
     trash: 'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7',
     close: 'm6 6 12 12M6 18 18 6',
     info: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 8v5m0-8.5v.5',
+    expand: 'M4 9V4h5M20 9V4h-5M4 15v5h5m11-5v5h-5',
+    collapse: 'M9 4v5H4m11-5v5h5M9 20v-5H4m11 5v-5h5',
+    grid: 'M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z',
+    list: 'M4 6h3m-3 6h3m-3 6h3M10 6h10m-10 6h10m-10 6h10',
     refresh: 'M20 8a8 8 0 0 0-14-3L3 8m0-5v5h5m-4 8a8 8 0 0 0 14 3l3-3m0 5v-5h-5',
   };
 </script>

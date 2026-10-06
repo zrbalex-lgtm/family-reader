@@ -7,6 +7,10 @@
   import { openFb2Book, positionAtPercent } from '../lib/fb2/book.js';
   import { Paginator } from '../lib/fb2/paginator.js';
   import { rememberPosition, recallPosition } from '../lib/reading-position.js';
+  import {
+    fullscreenSupported, isFullscreen, enterFullscreen, exitFullscreen, onFullscreenChange,
+    fullscreenPreference, setFullscreenPreference,
+  } from '../lib/fullscreen.js';
 
   let { bookId } = $props();
 
@@ -23,15 +27,23 @@
   let pageBox = $state();
   let sliderValue = $state(0);
   let dragging = $state(false);
+  let fullscreenWanted = $state(fullscreenPreference());
+  let fullscreenActive = $state(isFullscreen());
+  const canFullscreen = fullscreenSupported();
 
   // Imperative reader objects; not reactive on purpose.
   let paginator = null;
   let book = null;
+  // Set when the reader leaves full screen itself (e.g. Esc), so it is not re-entered on the next tap.
+  let fullscreenDismissed = false;
+  let enteredFullscreen = false;
 
   const userId = $derived($auth.session?.user.id || '');
   const chapterTitle = $derived(info?.title || record?.title || '');
   const percentLabel = $derived(Math.floor(dragging ? sliderValue / 10 : info?.percent || 0) + '%');
-  const pageLabel = $derived(info ? (info.approximate ? '≈ ' : '') + `Page ${info.chapterPage} of ${info.chapterPages}` : '');
+  const pageLabel = $derived(info ? `${info.bookPage} / ~${info.bookPages}` : '');
+  const chapterLeftLabel = $derived(!info ? '' : info.chapterPagesLeft <= 0 ? 'Last page in chapter'
+    : `${info.chapterPagesLeft} ${info.chapterPagesLeft === 1 ? 'page' : 'pages'} left in chapter`);
 
   function handleChange(next) {
     info = next;
@@ -44,6 +56,22 @@
     const moved = forward ? await paginator.next() : await paginator.previous();
     // Show the toolbar at the very start or end so the reader knows why nothing moved.
     if (!moved) toolbar = true;
+  }
+
+  // Full screen needs a user gesture, so a saved preference is applied on the first tap or key press.
+  function applyFullscreenPreference() {
+    if (!canFullscreen || !fullscreenWanted || fullscreenDismissed || isFullscreen()) return;
+    enteredFullscreen = true;
+    void enterFullscreen();
+  }
+
+  // The button follows the real state: it leaves full screen when active, otherwise enters it.
+  function toggleFullscreen() {
+    fullscreenWanted = !fullscreenActive;
+    setFullscreenPreference(fullscreenWanted);
+    fullscreenDismissed = false;
+    if (fullscreenWanted) applyFullscreenPreference();
+    else void exitFullscreen();
   }
 
   function jumpToPercent() {
@@ -69,6 +97,7 @@
     };
     const pointerUp = (event) => {
       if (!start || !event.isPrimary) return;
+      applyFullscreenPreference();
       const dx = event.clientX - start.x;
       const dy = event.clientY - start.y;
       start = null;
@@ -89,6 +118,10 @@
     surface.addEventListener('pointerdown', pointerDown);
     surface.addEventListener('pointerup', pointerUp);
     surface.addEventListener('pointercancel', pointerCancel);
+    const stopFullscreenWatch = onFullscreenChange(() => {
+      fullscreenActive = isFullscreen();
+      if (!fullscreenActive && fullscreenWanted) fullscreenDismissed = true;
+    });
 
     (async () => {
       try {
@@ -127,6 +160,9 @@
       surface.removeEventListener('pointerdown', pointerDown);
       surface.removeEventListener('pointerup', pointerUp);
       surface.removeEventListener('pointercancel', pointerCancel);
+      stopFullscreenWatch();
+      // Leave full screen with the reader, but only if the reader entered it.
+      if (enteredFullscreen) void exitFullscreen();
       resizeObserver?.disconnect();
       clearTimeout(resizeTimer);
       paginator?.destroy();
@@ -145,6 +181,7 @@
     const backward = ['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key) || (event.key === ' ' && event.shiftKey);
     if (forward || backward) {
       event.preventDefault();
+      applyFullscreenPreference();
       void turn(forward);
     } else if (event.key === 'Escape' && toolbar) {
       toolbar = false;
@@ -174,8 +211,14 @@
       <button class="icon-button" type="button" onclick={() => navigate('/library')} aria-label="Back to library" title="Back to library"><Icon name="back" /></button>
       <div class="reader-titles">
         <span class="reader-book-title">{record?.title}</span>
-        {#if chapterTitle && chapterTitle !== record?.title}<span class="reader-chapter-title">{chapterTitle}</span>{/if}
+        <span class="reader-chapter-title">{#if chapterTitle && chapterTitle !== record?.title}{chapterTitle} · {/if}{chapterLeftLabel}</span>
       </div>
+      {#if canFullscreen}
+        <button class="icon-button reader-fullscreen" type="button" onclick={toggleFullscreen} aria-pressed={fullscreenActive}
+          aria-label={fullscreenActive ? 'Exit full screen' : 'Full screen'} title={fullscreenActive ? 'Exit full screen' : 'Full screen'}>
+          <Icon name={fullscreenActive ? 'collapse' : 'expand'} />
+        </button>
+      {/if}
     </header>
     <footer class="reader-bar reader-bottom">
       <span class="reader-page-label">{pageLabel}</span>
@@ -184,5 +227,7 @@
         bind:value={sliderValue} oninput={() => dragging = true} onchange={jumpToPercent} />
       <span class="reader-percent">{percentLabel}</span>
     </footer>
+  {:else if info && status === 'ready'}
+    <div class="reader-indicator" aria-hidden="true">{pageLabel} · {percentLabel}</div>
   {/if}
 </main>

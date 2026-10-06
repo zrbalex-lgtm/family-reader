@@ -64,6 +64,8 @@ export class Paginator {
     this.pages = 1;
     this.width = 0;
     this.leaves = [];
+    this.charsPerPage = 0;
+    this.densityArea = 0;
     this.token = 0;
     this.busy = false;
   }
@@ -237,29 +239,51 @@ export class Paginator {
     this.emit();
   }
 
+  // Characters per page for the current layout, used to estimate whole-book page numbers
+  // without laying out the whole book. Short chunks (title pages, tiny chapters) are too
+  // sparse to be representative, so the last good estimate is kept and scaled by page area.
+  updateDensity() {
+    const chunk = this.currentChunk;
+    const area = this.width * this.page.clientHeight;
+    if (this.pages >= 3 && chunk.chars) {
+      // The last page of a chunk is usually only partly filled.
+      this.charsPerPage = chunk.chars / (this.pages - 0.5);
+      this.densityArea = area;
+    } else if (this.charsPerPage && this.densityArea && area !== this.densityArea) {
+      this.charsPerPage *= area / this.densityArea;
+      this.densityArea = area;
+    } else if (!this.charsPerPage) {
+      this.charsPerPage = Math.max(1, chunk.chars / this.pages);
+      this.densityArea = area;
+    }
+  }
+
   emit() {
     const section = this.currentSection;
     const chunk = this.currentChunk;
     const position = this.position();
-    let chapterPage = this.pageIndex + 1;
-    let chapterPages = this.pages;
-    const approximate = section.chunks.length > 1;
-    if (approximate && chunk.chars) {
-      // Other chunks are not laid out, so estimate their pages from this chunk's density.
-      const charsPerPage = chunk.chars / this.pages;
-      chapterPage = Math.round(chunk.charsBefore / charsPerPage) + this.pageIndex + 1;
-      chapterPages = Math.max(chapterPage, Math.round(section.chars / charsPerPage));
-    }
+    this.updateDensity();
+    const charsPerPage = this.charsPerPage;
+    // Pages are counted consecutively inside the laid-out chunk; earlier text is estimated.
+    const charsBefore = section.charsBefore + chunk.charsBefore;
+    const atEnd = this.atEnd;
+    const estimatedTotal = Math.max(1, Math.round(this.book.totalChars / charsPerPage));
+    let bookPage = Math.round(charsBefore / charsPerPage) + this.pageIndex + 1;
+    const bookPages = Math.max(bookPage, estimatedTotal);
+    if (atEnd) bookPage = bookPages;
+    // Pages left in this chapter: exact inside the current chunk, estimated for later chunks.
+    const charsAfterChunk = section.chars - chunk.charsBefore - chunk.chars;
+    const chapterPagesLeft = this.pages - this.pageIndex - 1 + Math.round(charsAfterChunk / charsPerPage);
     this.onChange({
       position,
       sectionIndex: this.section,
       title: section.title,
-      chapterPage,
-      chapterPages,
-      approximate,
-      percent: this.atEnd ? 100 : percentAt(this.book, position),
+      bookPage,
+      bookPages,
+      chapterPagesLeft,
+      percent: atEnd ? 100 : percentAt(this.book, position),
       atStart: this.atStart,
-      atEnd: this.atEnd,
+      atEnd,
     });
   }
 

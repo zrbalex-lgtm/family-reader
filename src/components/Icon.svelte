@@ -10,6 +10,11 @@
     logout: 'M9 4H4v16h5m-1-8h13m-4-4 4 4-4 4',
     back: 'm14 5-7 7 7 7M7 12h14',
     check: 'm5 12 4 4L19 6',
+    upload: 'M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5',
+    search: 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm5 12 6 6',
+    trash: 'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7',
+    close: 'm6 6 12 12M6 18 18 6',
+    refresh: 'M20 8a8 8 0 0 0-14-3L3 8m0-5v5h5m-4 8a8 8 0 0 0 14 3l3-3m0 5v-5h-5',
   };
 </script>
 

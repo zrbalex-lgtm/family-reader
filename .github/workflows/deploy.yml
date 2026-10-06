@@ -33,7 +33,7 @@ jobs:
         run: npm ci
       - name: Check Svelte
         run: npm run check
-      - name: Test security policies and configuration
+      - name: Test metadata, library rules and security
         run: npm test
       - name: Build
         run: npm run build

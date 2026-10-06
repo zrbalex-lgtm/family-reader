@@ -1,25 +1,28 @@
-# Family Reader — Stage 1
+# Family Reader — Stage 2
 
 A private family library for FB2 books and DOCX songbooks. Built with **Vite, Svelte 5, JavaScript ES modules and Supabase v2**, for **GitHub Pages**.
 
-**Stage 1 is implemented. Stop here and test before implementing Stage 2.**
+**Stage 1 has been tested by the user. Stage 2 is implemented and awaiting testing in GitHub. Stop here before Stage 3.**
+
+Already running Stage 1? Start with [the Stage 2 upgrade and test guide](docs/STAGE_2.md). No database migration or new repository variables are needed.
 
 Included:
 
 - Username/password sign-in, hidden `username@reader.local` mapping, no registration UI.
 - Persistent Supabase sessions and token refresh, protected hash routes, logout for the current browser.
 - Private profiles, editable display names and a responsive dark interface with safe-area padding.
-- A library shell with Books/Documents tabs. Uploads and readers are intentionally not implemented yet.
+- Shared Books/Documents shelves, multi-file upload and drag-and-drop, FB2/DOCX metadata, private cover thumbnails, SHA-256 duplicates, instant search, sorting and confirmed deletion.
+- Per-file transfer progress, retry controls and recovery of unfinished Storage cleanup.
 - One SQL migration: all five tables, indexes, profile trigger, RLS, private Storage bucket and policies.
 - GitHub Pages Actions deployment on pushes to `main`, with the correct repository base path.
-- Automated configuration and PostgreSQL policy tests.
+- Automated metadata, archive, search, cleanup, configuration and PostgreSQL policy tests in GitHub Actions.
 
 ## 1. Create a Supabase project
 
 1. Open [Supabase](https://supabase.com/dashboard) and create a **dedicated project** for Family Reader.
 2. Choose a region, set a database password and wait for the project to finish provisioning.
 3. Copy the **Project URL** and **anon public key** from the project's Connect/API settings. Depending on the dashboard version, the JWT-based anon key is under **Settings → API Keys → Legacy API Keys**.
-4. Keep these two values for the local environment and GitHub repository variables below.
+4. Keep these two values for the GitHub repository variables below.
 
 The anon key is designed to be included in browser code. Security is enforced by Postgres and Storage RLS. **Never use a `service_role` key, `sb_secret_…` key or the database password in the frontend.** Builds reject privileged keys. The client also accepts a Supabase `sb_publishable_…` browser key if your project uses the newer format; the environment variable name stays `VITE_SUPABASE_ANON_KEY`.
 
@@ -43,7 +46,7 @@ The migration creates the **`library`** bucket automatically. Under **Storage**,
 - File size limit: **50 MiB** by default. Adjust this limit later if your documents need more, within your Supabase project's limit.
 - Three policies on `storage.objects`: authenticated SELECT, INSERT and DELETE, restricted to `bucket_id = 'library'`.
 
-If creating the bucket manually before running the migration, use **New bucket → `library`**, keep Public OFF, and then run the migration to install the policies. No additional MIME allowlist is applied because devices can report different MIME types for FB2 and DOCX files. File validation belongs to the upload implementation in Stage 2.
+If creating the bucket manually before running the migration, use **New bucket → `library`**, keep Public OFF, and then run the migration to install the policies. No additional MIME allowlist is applied because devices can report different MIME types for FB2 and DOCX files. The Stage 2 uploader validates extensions and document structure before upload.
 
 Use this in a dedicated project. Existing permissive policies in a reused project can grant additional access because Postgres permissive policies combine with OR.
 
@@ -73,47 +76,13 @@ No mailbox is needed. Do not send invitation or password-recovery emails to thes
 
 For password recovery, the administrator sets a new password using trusted Supabase administration tools; there is no email recovery flow in this app. Never add an admin key to the browser to perform this.
 
-## 6. Run locally
+## 6. GitHub checks and deployment
 
-Install [Node.js](https://nodejs.org/) **24 LTS**. The project's minimum is Node 22.12; `.nvmrc` and Actions use Node 24.
+This project is tested and built in GitHub Actions. No local testing or preview is required. The workflow uses Node 24, installs from the lockfile, checks Svelte, runs the automated tests, builds the frontend and deploys it to Pages.
 
-Open a terminal in the extracted `family-reader` folder:
+For an existing Stage 1 repository, copy in the updated source files and lockfile, commit and push to main. Keep your existing repository variables and Supabase configuration. See [docs/STAGE_2.md](docs/STAGE_2.md) for the exact upgrade checklist.
 
-```sh
-npm ci
-```
-
-Copy `.env.example` to `.env.local`.
-
-PowerShell:
-
-```powershell
-Copy-Item .env.example .env.local
-```
-
-macOS/Linux:
-
-```sh
-cp .env.example .env.local
-```
-
-Replace the placeholders in `.env.local`:
-
-```dotenv
-VITE_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
-VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
-VITE_REPO_NAME=family-reader
-```
-
-Then:
-
-```sh
-npm run dev
-```
-
-Open **http://localhost:5173/family-reader/**, or the exact URL printed by Vite. If you changed `VITE_REPO_NAME`, use that path instead. Restart Vite after changing environment values.
-
-Without configuration, development shows a setup screen. Production builds deliberately fail if configuration is missing or invalid; there is no mock login or default password.
+The npm scripts used by CI remain in package.json. Local preview/combined verification scripts have been removed. There is no mock login, default password or bundled test configuration.
 
 ## 7. Create the GitHub repository
 
@@ -124,7 +93,7 @@ Using Git from the extracted project directory:
 ```sh
 git init
 git add .
-git commit -m "Implement Family Reader stage 1"
+git commit -m "Implement Family Reader stage 2"
 git branch -M main
 git remote add origin https://github.com/YOUR_USERNAME/family-reader.git
 ```
@@ -154,7 +123,7 @@ The workflow uses `GITHUB_REPOSITORY` to derive the exact base path, so a reposi
    git push -u origin main
    ```
 
-4. Under **Actions**, watch **Deploy Family Reader to GitHub Pages**. It installs locked dependencies, checks Svelte, runs the policy tests, builds, uploads `dist`, and deploys.
+4. Under **Actions**, watch **Deploy Family Reader to GitHub Pages**. It installs locked dependencies, checks Svelte, runs metadata and policy tests, builds, uploads `dist`, and deploys.
 5. Open the deployment URL, normally `https://YOUR_USERNAME.github.io/family-reader/`.
 
 Every subsequent push to `main` redeploys. You can also choose **Run workflow** manually. The deploy job uses the `github-pages` environment and the `pages: write` / `id-token: write` permissions. The build job only reads the repository and Pages configuration.
@@ -163,9 +132,9 @@ In Supabase **Authentication → URL Configuration**, set **Site URL** to the de
 
 Routes look like `.../family-reader/#/library` and `.../family-reader/#/settings`, so direct links and refreshes work without a Pages SPA rewrite.
 
-## 10. Test Stage 1
+## 10. Test on GitHub Pages
 
-Create two test family accounts and check the following on desktop and iPhone/iPad Safari:
+For Stage 2, use [the deployed-site checklist](docs/STAGE_2.md#test-on-the-deployed-site). The following account checks remain useful when setting up a new project:
 
 - [ ] Signed out, visit `#/settings`: the login screen appears.
 - [ ] Enter a wrong password: a clear error appears without revealing account existence.
@@ -179,18 +148,7 @@ Create two test family accounts and check the following on desktop and iPhone/iP
 - [ ] Rotate the phone/tablet and use keyboard navigation on desktop. Fields and buttons remain usable.
 - [ ] On GitHub Pages, open `#/settings` directly and refresh it: the app loads.
 
-The Books/Documents views are empty Stage 1 shells. Uploads, progress, actual readers, installation and offline behavior are not ready to test yet.
-
-Run the repeatable checks with:
-
-```sh
-npm run check
-npm test
-npm run build
-npm run preview
-```
-
-The production preview uses `http://localhost:4173/family-reader/`. `npm run verify` runs check, test and build together. Tests need no Supabase credentials; a production build does.
+Automated checks run in GitHub Actions on pushes to main or when you select **Run workflow**. This Stage 2 package has not been tested or built locally, as requested. Check the Actions results before testing the deployed site.
 
 The SQL tests execute the actual migration twice in an isolated PostgreSQL engine via PGlite. They verify grants, two-user RLS isolation, owner-spoofing rejection, duplicate hashes, profile creation, Storage policies and book-deletion cascades. The fixture supplies minimal Supabase-owned auth/storage objects; it does **not** emulate the Auth HTTP service, token refresh, Storage file transfers, or GitHub Actions. Those need the live checks above after configuration.
 
@@ -207,7 +165,7 @@ The SQL tests execute the actual migration twice in an isolated PostgreSQL engin
 
 `reading_progress.percent` is **0–100**, not a fraction. Positions are JSON objects with the requested FB2/DOCX shapes, interpreted by the respective reader in later stages. Storage paths are bucket-relative, not public URLs. New files should use immutable unique paths and `upsert: false`.
 
-Deleting a book cascades to progress and bookmarks. Deleting database rows does not delete Storage bytes: Stage 2 must call the Storage API for the file and cover. Do not delete `storage.objects` directly with SQL.
+Deleting a book cascades to progress and bookmarks. Deleting database rows does not delete Storage bytes: the app calls the Storage API for the file and cover and records unfinished cleanup for retry. Do not delete `storage.objects` directly with SQL.
 
 The session is stored by supabase-js in browser localStorage, isolated by project and base path. Raw passwords are passed only to Supabase Auth and are never logged or persisted by the app. Future IndexedDB caches and sync queues must also be isolated by user for personal records and cleared or separated on logout.
 
@@ -218,35 +176,46 @@ The session is stored by supabase-js in browser localStorage, isolated by projec
 supabase/schema.sql          Tables, indexes, RLS, profiles trigger, private bucket
 src/App.svelte               Session gate and hash routes
 src/routes/Login.svelte      Username/password login
-src/routes/Library.svelte    Stage 1 library shell
+src/routes/Library.svelte    Uploads, library grid, search and delete dialogs
 src/routes/Settings.svelte   Profile and logout
 src/lib/supabase.js          Public Supabase client
 src/lib/auth.js              Session/profile lifecycle
 src/lib/username.js          Canonical username mapping
 src/lib/router.js            Hash navigation
 src/lib/config.js            Frontend key validation and Pages base
-src/components/              Shared brand and icons
-src/app.css                  Responsive UI
+src/lib/library.js           Library state, upload queue and deletion
+src/lib/library-api.js       Supabase library operations
+src/lib/upload-transport.js  Real upload progress via the SDK transport
+src/lib/cleanup.js           Durable recovery of unfinished file cleanup
+src/lib/fb2/parser.js         FB2 metadata and embedded covers
+src/lib/docx/metadata.js      DOCX title metadata
+src/lib/archives.js          Bounded ZIP extraction
+src/lib/xml.js               XML decoding and safe parsing
+src/lib/prepare-upload.js    File preparation, thumbnails and fingerprints
+src/components/              Covers, upload list, dialogs, brand and icons
+src/app.css                  Shared responsive UI
+src/library.css              Library, upload and dialog styling
 src/tokens.css               Shared design variables
-tests/                       Config and database security tests
-docs/BUILD_SPEC.md           Remaining requirements and stage boundaries
+tests/                       Tests executed by GitHub Actions
+docs/BUILD_SPEC.md           Requirements and stage boundaries
+docs/STAGE_2.md              Upgrade instructions and deployed-site checks
 ```
 
 ## Implementation order
 
 1. **Complete:** skeleton, SQL/RLS, login, Pages workflow.
-2. Library: upload, metadata, covers, duplicates, search, delete.
+2. **Implemented; awaiting testing:** upload, metadata, covers, duplicates, search, delete.
 3. FB2: byte decoding, parsing, rendering, pagination, navigation.
 4. Reader settings, progress sync and Continue reading.
 5. Bookmarks, table of contents and footnotes.
 6. DOCX viewer, dark mode, zoom, search, wake lock and remembered position.
 7. PWA shell, installation, IndexedDB cache/queue and offline polish.
 
-Dependencies will be added when needed: JSZip, docx-preview, Dexie or idb-keyval, and vite-plugin-pwa. Do not register a service worker before the PWA stage. Each stage requires a separate test-and-review handoff before continuing.
+JSZip is included. Later stages will add docx-preview, Dexie or idb-keyval, and vite-plugin-pwa. Do not register a service worker before the PWA stage. Each stage requires a separate test-and-review handoff before continuing.
 
 ## Troubleshooting
 
-- **Setup screen / build fails:** check both environment values, replace placeholders, restart Vite or rerun Actions. Do not paste a database password or a privileged key.
+- **Setup screen / build fails:** check both environment values, replace placeholders, rerun Actions. Do not paste a database password or a privileged key.
 - **Incorrect username/password:** confirm the internal email matches `username@reader.local`, the user was auto-confirmed, and email/password login is enabled.
 - **Profile could not load:** check the connection, confirm the migration ran successfully and verify the account has a row in `profiles`. Re-running the migration backfills missing profiles.
 - **User creation fails:** inspect the SQL migration and database logs; an error in the Auth profile trigger can block user creation.

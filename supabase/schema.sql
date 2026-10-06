@@ -126,7 +126,7 @@ select id, left(coalesce(nullif(btrim(raw_user_meta_data ->> 'display_name'), ''
 from auth.users on conflict (user_id) do nothing;
 
 -- Storage object deletion must use the Storage API, never SQL DELETE.
--- Stage 2 will remove the file and optional cover when deleting a book.
+-- The app removes the file and optional cover through the Storage API.
 -- The bucket accepts the browsers' differing FB2/DOCX MIME types.
 insert into storage.buckets (id, name, public, file_size_limit)
 values ('library', 'library', false, 52428800)

@@ -8,6 +8,7 @@
   import Login from './routes/Login.svelte';
   import Library from './routes/Library.svelte';
   import Settings from './routes/Settings.svelte';
+  import { setLibraryUser, uploads } from './lib/library.js';
 
   let online = $state(navigator.onLine);
   const name = $derived(displayName($auth));
@@ -31,7 +32,16 @@
     if (!$auth.session && $route !== '/login') navigate('/login', { replace: true });
     if ($auth.session && $route === '/login') navigate('/library', { replace: true });
   });
+
+  $effect(() => { setLibraryUser($auth.session?.user.id || null); });
 </script>
+
+<svelte:window onbeforeunload={(event) => {
+  if ($uploads.some((row) => ['queued', 'processing'].includes(row.status))) {
+    event.preventDefault();
+    event.returnValue = '';
+  }
+}} />
 
 <svelte:head><title>{$auth.session ? ($route === '/settings' ? 'Settings' : 'Library') : 'Sign in'} · Family Reader</title></svelte:head>
 
@@ -50,9 +60,9 @@
     <a class="brand-link" href="#/library" aria-label="Family Reader library"><Brand /></a>
     <nav aria-label="Main navigation"><a href="#/library" class:current={$route === '/library'} aria-current={$route === '/library' ? 'page' : undefined} class="library-link">Library</a><a class="account-link" class:current={$route === '/settings'} href="#/settings" aria-label={`Settings for ${name}`} aria-current={$route === '/settings' ? 'page' : undefined}><span class="avatar">{initials}</span><span class="account-name">{name}</span><Icon name="settings" size={19} /></a></nav>
   </header>
-  {#if !online}<p class="connection-banner" role="status">You’re offline. Account changes need a connection.</p>{/if}
+  {#if !online}<p class="connection-banner" role="status">You’re offline. Library and account changes need a connection.</p>{/if}
   {#if $auth.profileError}<div class="connection-banner error" role="alert"><span>{$auth.profileError}</span><button class="text-button" onclick={refreshProfile} disabled={$auth.profileLoading}>{$auth.profileLoading ? 'Retrying…' : 'Try again'}</button></div>{/if}
-  {#if $route === '/library'}<Library />
+  {#if $route === '/library'}{#key $auth.session.user.id}<Library />{/key}
   {:else if $route === '/settings'}<Settings />
   {:else}<main class="content" id="main" tabindex="-1"><h1>Page not found</h1><a class="button secondary" href="#/library">Back to library</a></main>{/if}
 {/if}

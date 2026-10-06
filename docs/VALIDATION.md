@@ -1,11 +1,11 @@
-# Stage 1 validation
+# Validation status — Stage 2
 
-- `npm ci` inputs: package.json and the generated package-lock.json are included; dependencies use the public npm registry.
-- `npm run check`: passed, zero Svelte errors or warnings.
-- `npm test`: passed, 10 tests including nested database tests.
-- `npm run build`: passed using an explicitly fake anon-role test key and placeholder test project URL. This validates compilation and base paths, not a live Supabase connection. The test configuration and build output are not included in the downloadable package.
-- Actual schema execution: migration runs twice in isolated PostgreSQL (PGlite), including profile trigger/backfill, RLS grants/policies, owner isolation, storage restrictions, duplicate prevention and cross-user book deletion cascades.
-- Browser preview: attempted, but the browser tool timed out. Visual behavior and touch layout remain to be checked on real devices.
-- Live Supabase Auth, production token refresh, real Storage API operations and GitHub Pages deployment: not exercised because no project configuration or repository was supplied.
+Stage 1 was confirmed complete and tested by the user.
 
-Follow the Stage 1 checklist in README.md after creating the project and accounts. Do not proceed to Stage 2 until the user has tested this stage.
+Stage 2 source has been implemented. Per the user's instruction, no local tests, Svelte checks, builds, development servers or browser previews were run for this stage. No passing result is claimed for the new code.
+
+The GitHub Actions workflow runs Svelte checks, all Node test files, and the production build before deployment. It includes new cases for FB2/DOCX metadata, encodings, ZIP size bounds, hashes, search and cleanup safety, alongside the existing schema/RLS tests.
+
+Push the update and inspect the Actions results, then use docs/STAGE_2.md to test the deployed app with real files on iPhone, iPad and desktop.
+
+The dependency lockfile was updated without executing package scripts. This is dependency preparation, not an application test or build.

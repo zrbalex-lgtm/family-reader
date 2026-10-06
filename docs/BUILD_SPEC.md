@@ -1,6 +1,6 @@
 # Family Reader — continuing requirements
 
-Build only the stage the user requests. Stop after each stage, summarize, and wait for testing before proceeding. Stage 1 is complete in this package. Do not silently substitute another hosting provider or framework.
+Build only the stage the user requests. Stop after each stage, summarize, and wait for testing before proceeding. Stage 1 is complete and tested. Stage 2 is implemented in this package; wait for the user to test before Stage 3. Run automated tests/builds in GitHub Actions only; do not run local tests, builds or browser previews unless the user changes this instruction. Do not silently substitute another hosting provider or framework.
 
 ## Fixed architecture
 

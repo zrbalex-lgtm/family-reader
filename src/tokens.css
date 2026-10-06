@@ -9,4 +9,7 @@
   --border-hover: #56616a;
   --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
   --font-reading: Georgia, 'Times New Roman', serif;
+  --reader-bg: #14191d;
+  --reader-text: #e4e1d9;
+  --reader-muted: #8f989e;
 }

@@ -1,0 +1,100 @@
+/* Reader shell. Reading typography is driven by CSS variables so Stage 4 settings can override them. */
+.reader {
+  --reader-font: var(--font-reading);
+  --reader-font-size: 1.15rem;
+  --reader-line-height: 1.55;
+  --reader-indent: 1.5em;
+  --reader-align: justify;
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--reader-bg);
+  color: var(--reader-text);
+  outline: none;
+}
+@media (min-width: 700px) { .reader { --reader-font-size: 1.25rem; } }
+
+.reader-surface {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* The page box: everything inside the safe area minus the vertical reading margins. */
+.reader-page {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 2.25rem);
+  bottom: calc(env(safe-area-inset-bottom) + 2.25rem);
+  left: env(safe-area-inset-left);
+  right: env(safe-area-inset-right);
+  overflow: hidden;
+}
+
+/* The paginator sets left, width, height, column count and gap inline. */
+.fb-flow {
+  position: absolute;
+  top: 0;
+  column-fill: auto;
+  font-family: var(--reader-font);
+  font-size: var(--reader-font-size);
+  line-height: var(--reader-line-height);
+  text-align: var(--reader-align);
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  overflow-wrap: break-word;
+  transition: transform .22s ease-out;
+  will-change: transform;
+}
+.fb-flow p { margin: 0; text-indent: var(--reader-indent); orphans: 2; widows: 2; }
+/* Keep empty paragraphs one line tall so they still have a measurable position. */
+.fb-flow p:empty::after, .fb-flow .fb-image:empty::after { content: '\200b'; }
+
+.fb-flow .fb-title { margin: 0 0 1.4em; text-align: center; line-height: 1.3; font-weight: 600; break-after: avoid; break-inside: avoid; }
+.fb-flow .fb-title p { text-indent: 0; }
+.fb-flow .fb-title.level-0 { font-size: 1.45em; margin-top: 1.5em; }
+.fb-flow .fb-title.level-1 { font-size: 1.3em; margin-top: .5em; }
+.fb-flow .fb-title.level-2 { font-size: 1.12em; margin-top: 1em; }
+.fb-flow .fb-title.level-3 { font-size: 1em; margin-top: 1em; }
+.fb-flow .fb-subtitle { margin: 1em 0 .6em; text-align: center; text-indent: 0; font-weight: 600; break-after: avoid; }
+
+.fb-flow .fb-epigraph { margin: 0 0 1.4em 30%; font-size: .92em; font-style: italic; text-align: left; }
+.fb-flow .fb-epigraph p { text-indent: 0; }
+.fb-flow .fb-annotation { margin: 0 0 1.4em; font-size: .92em; font-style: italic; }
+.fb-flow .fb-cite { margin: .8em 0 .8em 1.5em; font-size: .95em; }
+.fb-flow .fb-poem { margin: .8em 0 .8em 10%; text-align: left; }
+.fb-flow .fb-poem .fb-title { font-size: 1em; text-align: left; margin: 0 0 .6em; }
+.fb-flow .fb-stanza { margin: 0 0 .8em; }
+/* Hanging indent for wrapped verse lines. */
+.fb-flow .fb-v { padding-left: 1.5em; text-indent: -1.5em; }
+.fb-flow .fb-text-author { text-align: right; text-indent: 0; font-style: italic; }
+.fb-flow .fb-date { text-align: right; text-indent: 0; font-size: .9em; }
+.fb-flow .fb-empty-line { height: calc(var(--reader-line-height) * 1em); }
+
+.fb-flow .fb-image { margin: .8em 0; text-align: center; text-indent: 0; break-inside: avoid; }
+.fb-flow .fb-image img { display: inline-block; max-width: 100%; max-height: calc(var(--page-height, 80vh) - 1.6em); object-fit: contain; }
+.fb-flow .fb-inline-image { max-height: 1.5em; vertical-align: middle; }
+
+.fb-flow .fb-note { font-size: .7em; line-height: 0; color: var(--accent); }
+.fb-flow .fb-table-wrap { margin: .8em 0; text-indent: 0; overflow: hidden; }
+.fb-flow .fb-table { border-collapse: collapse; font-size: .85em; text-align: left; }
+.fb-flow .fb-table td, .fb-flow .fb-table th { border: 1px solid var(--border); padding: .2em .45em; vertical-align: top; }
+
+/* Status and toolbars float above the page so the text never moves when they appear. */
+.reader-status { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; padding: 2rem max(1.5rem, env(safe-area-inset-right)) 2rem max(1.5rem, env(safe-area-inset-left)); text-align: center; background: var(--reader-bg); }
+.reader-status h1 { font-size: 1.8rem; }
+.reader-status .button { margin-top: .5rem; }
+
+.reader-bar { position: absolute; left: 0; right: 0; z-index: 2; display: flex; align-items: center; gap: .75rem; background: rgba(16, 21, 25, .96); color: var(--text); font: 400 .875rem/1.4 var(--font-ui); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.reader-top { top: 0; border-bottom: 1px solid var(--border); padding: calc(env(safe-area-inset-top) + .35rem) max(.75rem, env(safe-area-inset-right)) .35rem max(.5rem, env(safe-area-inset-left)); }
+.reader-bottom { bottom: 0; border-top: 1px solid var(--border); padding: .35rem max(1rem, env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + .35rem) max(1rem, env(safe-area-inset-left)); }
+.reader-titles { display: flex; flex-direction: column; min-width: 0; }
+.reader-book-title, .reader-chapter-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reader-book-title { font-weight: 550; }
+.reader-chapter-title { color: var(--muted); font-size: .8125rem; }
+.reader-page-label, .reader-percent { flex-shrink: 0; color: var(--muted); font-variant-numeric: tabular-nums; }
+.reader-percent { min-width: 2.6rem; text-align: right; }
+.reader-bar .reader-slider { flex: 1; min-width: 0; min-height: 44px; padding: 0; border: 0; background: transparent; accent-color: var(--accent); }
+@media (max-width: 420px) { .reader-page-label { font-size: .8125rem; } }

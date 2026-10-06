@@ -1,8 +1,8 @@
-# Family Reader — Stage 2
+# Family Reader — Stage 3
 
 A private family library for FB2 books and DOCX songbooks. Built with **Vite, Svelte 5, JavaScript ES modules and Supabase v2**, for **GitHub Pages**.
 
-**Stage 1 has been tested by the user. Stage 2 is implemented and awaiting testing in GitHub. Stop here before Stage 3.**
+**Stages 1–2 are done. Stage 3 (FB2 reader) is implemented and awaiting testing — see [docs/STAGE_3.md](docs/STAGE_3.md). Stop here before Stage 4.**
 
 Already running Stage 1? Start with [the Stage 2 upgrade and test guide](docs/STAGE_2.md). No database migration or new repository variables are needed.
 
@@ -178,6 +178,12 @@ src/App.svelte               Session gate and hash routes
 src/routes/Login.svelte      Username/password login
 src/routes/Library.svelte    Uploads, library grid, search and delete dialogs
 src/routes/Settings.svelte   Profile and logout
+src/routes/Reader.svelte     FB2 reader screen, gestures and toolbar
+src/lib/fb2/book.js          FB2 reading model, chunks and positions
+src/lib/fb2/render.js        Safe FB2 → DOM translation
+src/lib/fb2/paginator.js     CSS-column pagination
+src/lib/reading-position.js  In-memory reading positions
+src/reader.css               Reader styling
 src/lib/supabase.js          Public Supabase client
 src/lib/auth.js              Session/profile lifecycle
 src/lib/username.js          Canonical username mapping
@@ -199,13 +205,14 @@ src/tokens.css               Shared design variables
 tests/                       Tests executed by GitHub Actions
 docs/BUILD_SPEC.md           Requirements and stage boundaries
 docs/STAGE_2.md              Upgrade instructions and deployed-site checks
+docs/STAGE_3.md              FB2 reader test checklist
 ```
 
 ## Implementation order
 
 1. **Complete:** skeleton, SQL/RLS, login, Pages workflow.
-2. **Implemented; awaiting testing:** upload, metadata, covers, duplicates, search, delete.
-3. FB2: byte decoding, parsing, rendering, pagination, navigation.
+2. **Complete:** upload, metadata, covers, duplicates, search, delete.
+3. **Implemented; awaiting testing:** FB2 byte decoding, parsing, rendering, pagination, navigation.
 4. Reader settings, progress sync and Continue reading.
 5. Bookmarks, table of contents and footnotes.
 6. DOCX viewer, dark mode, zoom, search, wake lock and remembered position.

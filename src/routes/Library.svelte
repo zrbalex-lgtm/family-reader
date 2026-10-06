@@ -7,6 +7,7 @@
   import { library, uploads, refreshLibrary, enqueueFiles, deleteBook, retryCleanup } from '../lib/library.js';
   import { filterAndSortBooks } from '../lib/library-query.js';
   import { ACCEPTED_FILES, formatBytes } from '../lib/files.js';
+  import { navigate } from '../lib/router.js';
 
   let kind = $state('fb2');
   let search = $state('');
@@ -81,6 +82,15 @@
     } catch (error) { deleteError = error.message; }
     finally { deleteBusy = false; }
   }
+  function openBook(book) {
+    if (book.kind === 'fb2') navigate('/read/' + book.id);
+    else selected = book;
+  }
+  function readSelected() {
+    const id = selected.id;
+    selected = null;
+    navigate('/read/' + id);
+  }
   function formatDate(value) {
     return new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(value));
   }
@@ -139,13 +149,14 @@
     <div class="book-grid">
       {#each visible as book (book.id)}
         <article class="book-card">
-          <button class="book-open" type="button" onclick={() => selected = book} aria-label={'View details for ' + book.title}>
+          <button class="book-open" type="button" onclick={() => openBook(book)} aria-label={(book.kind === 'fb2' ? 'Read ' : 'View details for ') + book.title}>
             <BookCover {book} />
             <span class="book-title">{book.title}</span>
             <span class="book-author">{book.author || (book.kind === 'docx' ? 'Document' : 'Unknown author')}</span>
           </button>
           <div class="book-card-footer">
             <span class="book-series">{book.series || formatBytes(book.size_bytes)}{#if book.series && book.series_index !== null} · {book.series_index}{/if}</span>
+            {#if book.kind === 'fb2'}<button class="icon-button details-book" type="button" aria-label={'Details for ' + book.title} title="Book details" onclick={() => selected = book}><Icon name="info" size={18} /></button>{/if}
             <button class="icon-button delete-book" type="button" aria-label={'Delete ' + book.title} title="Delete from library" onclick={() => confirmDelete(book)} disabled={!online}><Icon name="trash" size={18} /></button>
           </div>
         </article>
@@ -174,7 +185,7 @@
       </div>
     </div>
     {#if selected.annotation}<p class="annotation">{selected.annotation}</p>{/if}
-    <div class="detail-footer"><p class="muted">Reading opens in a later stage.</p><button class="button danger-outline" onclick={() => confirmDelete(selected)} disabled={!online}><Icon name="trash" size={18} /> Delete</button></div>
+    <div class="detail-footer">{#if selected.kind === 'fb2'}<button class="button primary" type="button" onclick={readSelected}><Icon name="book" size={18} /> Read</button>{:else}<p class="muted">Documents open in a later stage.</p>{/if}<button class="button danger-outline" onclick={() => confirmDelete(selected)} disabled={!online}><Icon name="trash" size={18} /> Delete</button></div>
   </Modal>
 {/if}
 

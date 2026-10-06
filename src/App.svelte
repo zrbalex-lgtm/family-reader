@@ -8,11 +8,14 @@
   import Login from './routes/Login.svelte';
   import Library from './routes/Library.svelte';
   import Settings from './routes/Settings.svelte';
+  import Reader from './routes/Reader.svelte';
   import { setLibraryUser, uploads } from './lib/library.js';
 
   let online = $state(navigator.onLine);
   const name = $derived(displayName($auth));
   const initials = $derived([...name][0]?.toUpperCase() || 'R');
+  const readingId = $derived($route.startsWith('/read/') ? decodeURIComponent($route.slice('/read/'.length)) : '');
+  const pageTitle = $derived(!$auth.session ? 'Sign in' : readingId ? 'Reading' : $route === '/settings' ? 'Settings' : 'Library');
 
   onMount(() => {
     const stopRouter = startRouter();
@@ -43,7 +46,7 @@
   }
 }} />
 
-<svelte:head><title>{$auth.session ? ($route === '/settings' ? 'Settings' : 'Library') : 'Sign in'} · Family Reader</title></svelte:head>
+<svelte:head><title>{pageTitle} · Family Reader</title></svelte:head>
 
 <a class="skip-link" href="#main" onclick={(event) => { event.preventDefault(); document.getElementById('main')?.focus(); }}>Skip to content</a>
 {#if configurationError}
@@ -55,6 +58,8 @@
   <main class="loading-screen" id="main" tabindex="-1"><Brand /><p class="muted" role="status">Opening your library…</p></main>
 {:else if !$auth.session}
   <Login />
+{:else if readingId}
+  {#key readingId + ':' + $auth.session.user.id}<Reader bookId={readingId} />{/key}
 {:else}
   <header class="app-header">
     <a class="brand-link" href="#/library" aria-label="Family Reader library"><Brand /></a>

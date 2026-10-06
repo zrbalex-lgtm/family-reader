@@ -33,6 +33,8 @@ select:focus-visible, dialog:focus-visible { outline: 2px solid var(--accent); o
 .book-card-footer { display: flex; align-items: center; justify-content: space-between; gap: .3rem; margin-top: auto; padding-top: .25rem; }
 .book-series { color: var(--muted); font-size: .8125rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .delete-book { margin-right: -.45rem; flex-shrink: 0; }
+.details-book { margin-left: auto; flex-shrink: 0; }
+.details-book:hover { color: var(--text); background: var(--surface-hover); }
 .delete-book:hover { color: #ffb2a6; background: #302321; }
 .upload-hint { color: var(--muted); font-size: .8125rem; margin-top: 1rem; }
 .shelf-hint { text-align: center; margin-top: 2.5rem; }

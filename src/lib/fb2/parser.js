@@ -12,33 +12,42 @@ function annotationText(annotation) {
   return (blocks.length ? blocks.join('\n\n') : textOf(annotation)).slice(0, 20000) || null;
 }
 
+const IMAGE_TYPES = /^image\/(jpeg|jpg|png|webp|gif|bmp)$/;
+
+// Returns the internal "#id" reference of an FB2 <image>, whichever namespace prefix is used.
+export function imageHref(image) {
+  return image?.getAttributeNS('http://www.w3.org/1999/xlink', 'href') || image?.getAttribute('href') || image?.getAttribute('l:href') || null;
+}
+
+// Decodes a base64 <binary> image. Returns { blob } or { problem: 'format' | 'size' | 'damaged' }.
+export function decodeBinaryImage(binary, maxBase64Length = 16 * 1024 * 1024) {
+  const mime = binary?.getAttribute('content-type')?.toLowerCase().trim();
+  if (!binary || !IMAGE_TYPES.test(mime || '')) return { problem: 'format' };
+  const base64 = (binary.textContent || '').replace(/\s/g, '');
+  if (base64.length > maxBase64Length) return { problem: 'size' };
+  try {
+    const decoded = atob(base64);
+    const bytes = Uint8Array.from(decoded, (character) => character.charCodeAt(0));
+    return { blob: new Blob([bytes], { type: mime === 'image/jpg' ? 'image/jpeg' : mime }) };
+  } catch {
+    return { problem: 'damaged' };
+  }
+}
+
 function extractCover(root, titleInfo, warnings) {
   const image = child(child(titleInfo, 'coverpage'), 'image');
   if (!image) return null;
-  const href = image.getAttributeNS('http://www.w3.org/1999/xlink', 'href') || image.getAttribute('href') || image.getAttribute('l:href');
+  const href = imageHref(image);
   if (!href?.startsWith('#')) {
     warnings.push('The cover is not embedded in this file.');
     return null;
   }
   const binary = children(root, 'binary').find((node) => node.getAttribute('id') === href.slice(1));
-  const mime = binary?.getAttribute('content-type')?.toLowerCase().trim();
-  if (!binary || !/^image\/(jpeg|jpg|png|webp|gif|bmp)$/.test(mime || '')) {
-    warnings.push('The embedded cover format is not supported.');
-    return null;
-  }
-  const base64 = (binary.textContent || '').replace(/\s/g, '');
-  if (base64.length > 16 * 1024 * 1024) {
-    warnings.push('The embedded cover is too large; the book can still be uploaded.');
-    return null;
-  }
-  try {
-    const decoded = atob(base64);
-    const bytes = Uint8Array.from(decoded, (character) => character.charCodeAt(0));
-    return new Blob([bytes], { type: mime === 'image/jpg' ? 'image/jpeg' : mime });
-  } catch {
-    warnings.push('The embedded cover is damaged.');
-    return null;
-  }
+  const result = decodeBinaryImage(binary);
+  if (result.problem === 'format') warnings.push('The embedded cover format is not supported.');
+  if (result.problem === 'size') warnings.push('The embedded cover is too large; the book can still be uploaded.');
+  if (result.problem === 'damaged') warnings.push('The embedded cover is damaged.');
+  return result.blob || null;
 }
 
 export function parseFb2Metadata(bytes, filename) {

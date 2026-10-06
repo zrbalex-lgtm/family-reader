@@ -52,6 +52,12 @@ export async function uploadObject(path, blob, onProgress, signal) {
   if (error) throw error;
 }
 
+export async function downloadObject(path) {
+  const { data, error } = await supabase.storage.from('library').download(path);
+  if (error) throw error;
+  return data.arrayBuffer();
+}
+
 export function friendlyLibraryError(error, fallback) {
   if (error?.code === '42501' || ['401', '403'].includes(String(error?.statusCode || error?.status))) {
     return 'Your account could not access the library. Try signing in again.';

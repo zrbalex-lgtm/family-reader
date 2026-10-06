@@ -85,6 +85,12 @@ export class Paginator {
     return this.load(target.section, chunkIndexFor(section, target.paragraph), target);
   }
 
+  // Opens the last page of the book (used for finished books).
+  openAtEnd() {
+    const last = this.book.sections.length - 1;
+    return this.load(last, this.book.sections[last].chunks.length - 1, 'end');
+  }
+
   // target: 'start' | 'end' | { paragraph, charOffset }
   async load(sectionIndex, chunkIndex, target) {
     const token = ++this.token;
@@ -287,7 +293,8 @@ export class Paginator {
       bookPage,
       bookPages,
       chapterPagesLeft,
-      percent: atEnd ? 100 : percentAt(this.book, position),
+      // Position-based, so it stays below 100 until the reader confirms the end.
+      percent: percentAt(this.book, position),
       atStart: this.atStart,
       atEnd,
     });

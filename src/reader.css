@@ -153,3 +153,21 @@
 }
 .reader-sync-actions { display: flex; justify-content: flex-end; gap: .6rem; margin-top: .8rem; }
 .reader-sync-actions .button { min-height: 42px; padding: .5rem 1rem; }
+
+/* End-of-book screen: covers the page, uses the reader theme. */
+.end-of-book {
+  position: absolute; inset: 0; z-index: 5; overflow-y: auto;
+  display: flex; align-items: center; justify-content: center;
+  padding: calc(env(safe-area-inset-top) + 1.5rem) max(1.5rem, env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 1.5rem) max(1.5rem, env(safe-area-inset-left));
+  background: var(--reader-bg); color: var(--reader-text);
+}
+.end-card { width: min(100%, 420px); display: flex; flex-direction: column; align-items: center; text-align: center; }
+.end-eyebrow { font: 400 italic 1.9rem/1.2 var(--reader-font); margin-bottom: 1.4rem; }
+.end-cover { width: min(42vw, 150px); margin-bottom: 1.2rem; }
+.end-cover .book-cover { box-shadow: 0 8px 24px rgba(0, 0, 0, .3); }
+.end-book-title { font: 600 1.2rem/1.35 var(--font-ui); overflow-wrap: anywhere; }
+.end-author { color: var(--reader-muted); margin-top: .3rem; font-family: var(--font-ui); }
+.end-extra { margin-top: 1.2rem; }
+.end-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .6rem; margin-top: 1.8rem; font-family: var(--font-ui); }
+.end-actions .button.secondary { color: var(--text); }
+@media (max-width: 420px) { .end-actions { flex-direction: column; align-self: stretch; } }

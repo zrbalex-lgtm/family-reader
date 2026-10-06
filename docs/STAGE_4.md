@@ -52,6 +52,25 @@ Progress
 - [ ] Sign in as a second user in the same browser: no progress badges or Continue reading from the first user.
 - [ ] Delete a book with progress: it disappears from Continue reading after refresh.
 
+## End-of-book screen
+
+- Turning forward from the last page (tap, swipe or keyboard) opens **The End** with the cover, title, author and **Back to library**, **Close** (back to the last page) and **Read again** (back to the start; this is saved as new progress).
+- The last page shows 100%, but saved progress only becomes 100% when **The End** appears; it is then saved and synced like any other move. Only books at 100% count as finished.
+- A finished book opens on its last page on every device; turning forward shows **The End** again.
+- Turning back from the first page does nothing. While **The End** is open, Esc closes it and page keys are ignored.
+- `EndOfBook.svelte` accepts an optional `extra` snippet, reserved for a later rating control.
+
+### Test the end screen
+
+- [ ] On the last page, tap the right third, swipe left and press → / Space: **The End** appears each time after closing.
+- [ ] **Close** returns to the last page; **Back to library** opens the library.
+- [ ] After **The End**, the library shows **Finished** on the book in both Grid and List, and it is gone from Continue reading.
+- [ ] Reach the last page but leave without turning forward: the book is not marked Finished.
+- [ ] Reopen the finished book on another device (portrait and landscape): it opens on the last page; turning forward shows **The End**.
+- [ ] **Read again**: the book opens at the start; the library shows it in Continue reading again.
+- [ ] On the very first page, tap left / swipe right / press ←: nothing happens, no overlay or toolbar.
+- [ ] Check **The End** in Light, Sepia and Black themes and on a phone with a notch.
+
 ## Scope boundary
 
 Bookmarks, table of contents and footnotes are Stage 5. DOCX viewing is Stage 6. Caching books for offline reading, the service worker and full offline polish are Stage 7.

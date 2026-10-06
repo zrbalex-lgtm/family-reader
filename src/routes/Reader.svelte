@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte';
   import Icon from '../components/Icon.svelte';
   import ReaderSettings from '../components/ReaderSettings.svelte';
+  import EndOfBook from '../components/EndOfBook.svelte';
   import { auth } from '../lib/auth.js';
   import { navigate } from '../lib/router.js';
   import { findBookById, downloadObject, friendlyLibraryError } from '../lib/library-api.js';
@@ -33,6 +34,7 @@
   let fullscreenActive = $state(isFullscreen());
   let remote = $state(null);
   let paginatorReady = $state(false);
+  let ended = $state(false);
   const canFullscreen = fullscreenSupported();
 
   // Imperative reader objects; not reactive on purpose.
@@ -50,7 +52,8 @@
   const userId = $derived($auth.session?.user.id || '');
   const fullscreenWanted = $derived($readerSettings.fullscreen);
   const chapterTitle = $derived(info?.title || record?.title || '');
-  const percentLabel = $derived(Math.floor(dragging ? sliderValue / 10 : info?.percent || 0) + '%');
+  // The last page reads as 100%, although saved progress only reaches 100 at the end screen.
+  const percentLabel = $derived(Math.floor(dragging ? sliderValue / 10 : info?.atEnd ? 100 : info?.percent || 0) + '%');
   const pageLabel = $derived(info ? `${info.bookPage} / ~${info.bookPages}` : '');
   const chapterLeftLabel = $derived(!info ? '' : info.chapterPagesLeft <= 0 ? 'Last page in chapter'
     : `${info.chapterPagesLeft} ${info.chapterPagesLeft === 1 ? 'page' : 'pages'} left in chapter`);
@@ -72,9 +75,26 @@
     const moved = forward ? await paginator.next() : await paginator.previous();
     if (!moved) {
       saveNext = false;
-      // Show the toolbar at the very start or end so the reader knows why nothing moved.
-      toolbar = true;
+      // Forward from the last page ends the book; back from the first page does nothing.
+      if (forward) showEnd();
     }
+  }
+
+  function showEnd() {
+    toolbar = false;
+    settingsOpen = false;
+    ended = true;
+    // Finishing is saved and synced like any other progress update.
+    if (info) {
+      movedSinceOpen = true;
+      remote = null;
+      void saveProgress(userId, bookId, info.position, 100);
+    }
+  }
+
+  function readAgain() {
+    ended = false;
+    jumpTo(START);
   }
 
   function jumpTo(position) {
@@ -200,10 +220,9 @@
         await settingsReady;
         await ensureFont($readerSettings.font);
         const local = await localProgress(userId, bookId);
-        let startAt = local?.position;
+        let startEntry = local;
         if (!local) {
-          const server = await Promise.race([serverPromise, new Promise((resolve) => setTimeout(() => resolve(null), SERVER_WAIT))]);
-          startAt = server?.position;
+          startEntry = await Promise.race([serverPromise, new Promise((resolve) => setTimeout(() => resolve(null), SERVER_WAIT))]);
         }
         if (!alive) return;
         status = 'ready';
@@ -213,7 +232,9 @@
         paginator = new Paginator(pageBox, book, handleChange);
         paginator.setMinMargin($readerSettings.margin);
         appliedLayout = layoutKey($readerSettings);
-        await paginator.open(startAt || START);
+        // A finished book opens on its last page, whatever the layout on the finishing device was.
+        if (startEntry?.percent >= 100) await paginator.openAtEnd();
+        else await paginator.open(startEntry?.position || START);
         paginatorReady = true;
         // Re-paginate after resize or rotation, keeping the first visible paragraph.
         resizeObserver = new ResizeObserver(() => {
@@ -254,6 +275,11 @@
 
   function keydown(event) {
     if (status !== 'ready' || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (ended) {
+      // Only Escape works while the end screen is open; buttons handle their own keys.
+      if (event.key === 'Escape') ended = false;
+      return;
+    }
     if (event.key === 'Escape') {
       if (settingsOpen) settingsOpen = false;
       else if (toolbar) toolbar = false;
@@ -289,7 +315,11 @@
     </div>
   {/if}
 
-  {#if remote && status === 'ready'}
+  {#if ended && record}
+    <EndOfBook book={record} onlibrary={() => navigate('/library')} onclose={() => ended = false} onrestart={readAgain} />
+  {/if}
+
+  {#if remote && status === 'ready' && !ended}
     <section class="reader-sync-prompt" aria-live="polite" aria-label="Continue reading">
       <p>Continue from where you left off on {remote.deviceLabel} ({Math.floor(remote.percent)}%)?</p>
       <div class="reader-sync-actions">

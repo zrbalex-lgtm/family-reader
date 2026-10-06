@@ -11,7 +11,8 @@
   import { progress, refreshProgress } from '../lib/sync.js';
 
   const VIEW_KEY = 'family-reader:library-view';
-  const FINISHED = 99.5;
+  // Progress reaches 100 only when the reader shows the end-of-book screen.
+  const FINISHED = 100;
 
   function progressLabel(percent) {
     return percent >= FINISHED ? 'Finished' : Math.floor(percent) + '%';

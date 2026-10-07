@@ -1,5 +1,5 @@
-/* Family Reader service worker. Built by the plugin in vite.config.js, which replaces
-   __PRECACHE__ (all built files) and __VERSION__ (changes with every build). */
+/* Family Reader service worker. Built by the plugin in vite.config.js, which fills in the
+   precache list (all built and public files) and a version that changes with every build. */
 const VERSION = '__VERSION__';
 const PRECACHE = __PRECACHE__;
 const SHELL_CACHE = 'shell-' + VERSION;

@@ -18,8 +18,9 @@ function serviceWorker() {
       const html = bundle['index.html']?.source || '';
       const version = createHash('sha256').update(files.join('|') + html).digest('hex').slice(0, 12);
       const source = readFileSync('src/sw/service-worker.js', 'utf8')
-        .replace('__PRECACHE__', JSON.stringify(files))
-        .replace('__VERSION__', version);
+        .replaceAll('__PRECACHE__', JSON.stringify(files))
+        .replaceAll('__VERSION__', version);
+      if (source.includes('__PRECACHE__') || source.includes('__VERSION__')) throw new Error('Service worker placeholders were not replaced.');
       this.emitFile({ type: 'asset', fileName: 'sw.js', source });
     },
   };

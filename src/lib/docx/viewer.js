@@ -70,6 +70,23 @@ function modelFonts(doc) {
   return Array.from(names.values());
 }
 
+// docx-preview starts a new page only at explicit page breaks (or when the page size changes).
+// Word also starts a new page at every section break that is not "continuous" (the default
+// "next page" type), which is how many songbooks put each song on its own page. A section's
+// own type says how it begins, so the break goes at the end of the section before it.
+function addSectionPageBreaks(doc) {
+  const body = doc.documentPart?.body;
+  if (!body?.children) return;
+  const sectionEnds = body.children.filter((element) => element.type === 'paragraph' && element.sectionProps);
+  sectionEnds.forEach((paragraph, index) => {
+    const next = index + 1 < sectionEnds.length ? sectionEnds[index + 1].sectionProps : body.props;
+    const type = next?.type || 'nextPage';
+    if (type === 'continuous' || type === 'nextColumn') return;
+    // A run holding a page break; it renders as an empty span.
+    paragraph.children = [...(paragraph.children || []), { type: 'run', children: [{ type: 'break', break: 'page' }] }];
+  });
+}
+
 /**
  * Renders the document into `body` (pages) and `styles` (document CSS).
  * Missing fonts with a metric-compatible substitute are loaded before rendering, because
@@ -103,6 +120,7 @@ export async function renderDocx(bytes, body, styles) {
     await withTimeout(Promise.all(loads), 4000);
   }
 
+  addSectionPageBreaks(doc);
   let nodes;
   try {
     nodes = await renderDocument(doc, RENDER_OPTIONS);

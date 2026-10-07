@@ -75,6 +75,14 @@ Songbook (110–250 songs) on the iPad (iPadOS 16) and iPhone
 Desktop
 - [ ] ←/→, PageUp/PageDown, Space, Home/End; mouse wheel pans and turns at the page edge; Ctrl + wheel zooms around the cursor.
 
+## Section breaks as pages
+
+docx-preview starts a new page only at explicit page breaks or when the page size changes; it ignores the *type* of a section break. Songbooks that put every song in its own section ("Section break — Next page", the default type) were therefore shown as one very tall page (in Fit page it looked like a narrow strip). The viewer now adds a page break at the end of every section whose following section is not **continuous**, matching Word. Continuous section breaks (e.g. switching to two columns inside a song) stay on the same page. Cached song lists were rebuilt (`songs:v2`) because page numbers changed.
+
+Still a renderer limitation: text longer than one page inside a single section is not split automatically; that page is shown taller than A4 (nothing is cut off). Insert a page break in Word where you want the second page to start.
+
+- [ ] Open a songbook built with one section per song: one song per page, page count close to Word's; songs with a two-column part stay on one page.
+
 ## Scope boundary
 
 Stage 7 (PWA, installation, offline cache for books and documents, offline queue polish) is next.

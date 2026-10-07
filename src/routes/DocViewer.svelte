@@ -17,7 +17,8 @@
   const SERVER_WAIT = 1500;
   const WAKE_KEY = 'family-reader:doc-wake-lock';
   // Bump when the renderer or song detection changes, so cached song lists are rebuilt.
-  const SONGS_CACHE = 'songs:v1:';
+  // v2: section breaks start new pages, so page numbers differ from v1.
+  const SONGS_CACHE = 'songs:v2:';
   const MODES = new Set(['page', 'width', 'custom']);
 
   let status = $state('loading');

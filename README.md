@@ -1,8 +1,8 @@
-# Family Reader — Stage 5
+# Family Reader — Stage 6
 
 A private family library for FB2 books and DOCX songbooks. Built with **Vite, Svelte 5, JavaScript ES modules and Supabase v2**, for **GitHub Pages**.
 
-**Stages 1–4 are done. Stage 5 (bookmarks, table of contents, footnotes) is implemented and awaiting testing — see [docs/STAGE_5.md](docs/STAGE_5.md). Stop here before Stage 6.**
+**Stages 1–5 are done. Stage 6 (DOCX songbook viewer) is implemented and awaiting testing — see [docs/STAGE_6.md](docs/STAGE_6.md). Stop here before Stage 7.**
 
 Already running Stage 1? Start with [the Stage 2 upgrade and test guide](docs/STAGE_2.md). No database migration or new repository variables are needed.
 
@@ -200,6 +200,10 @@ src/components/ReaderSettings.svelte  Reader settings sheet
 src/components/ReaderContents.svelte  Contents and bookmarks sheet
 src/components/EndOfBook.svelte       End-of-book screen
 src/lib/bookmarks.js         Private bookmarks via Supabase
+src/routes/DocViewer.svelte  DOCX songbook viewer screen
+src/lib/docx/viewer.js       DOCX rendering, sanitizing, search and font checks
+src/vendor/docx-preview/     Vendored docx-preview 0.4.1 (Apache-2.0)
+src/docx.css                 DOCX viewer styling
 src/reader.css               Reader styling
 src/lib/supabase.js          Public Supabase client
 src/lib/auth.js              Session/profile lifecycle
@@ -225,6 +229,7 @@ docs/STAGE_2.md              Upgrade instructions and deployed-site checks
 docs/STAGE_3.md              FB2 reader test checklist
 docs/STAGE_4.md              Settings and sync test checklist
 docs/STAGE_5.md              Bookmarks, contents and footnotes checklist
+docs/STAGE_6.md              DOCX viewer checklist and limitations
 ```
 
 ## Implementation order
@@ -233,11 +238,11 @@ docs/STAGE_5.md              Bookmarks, contents and footnotes checklist
 2. **Complete:** upload, metadata, covers, duplicates, search, delete.
 3. **Complete:** FB2 byte decoding, parsing, rendering, pagination, navigation.
 4. **Complete:** reader settings, progress sync and Continue reading.
-5. **Implemented; awaiting testing:** bookmarks, table of contents and footnotes.
-6. DOCX viewer, dark mode, zoom, search, wake lock and remembered position.
+5. **Complete:** bookmarks, table of contents and footnotes.
+6. **Implemented; awaiting testing:** DOCX viewer, dark mode, zoom, search, wake lock and remembered position.
 7. PWA shell, installation, IndexedDB cache/queue and offline polish.
 
-JSZip is included. IndexedDB uses a small built-in wrapper; reader web fonts load on demand from Google Fonts. Later stages will add docx-preview and vite-plugin-pwa. Do not register a service worker before the PWA stage. Each stage requires a separate test-and-review handoff before continuing.
+JSZip is included. IndexedDB uses a small built-in wrapper; reader web fonts load on demand from Google Fonts. docx-preview is vendored in `src/vendor/docx-preview/`. Stage 7 will add vite-plugin-pwa. Do not register a service worker before the PWA stage. Each stage requires a separate test-and-review handoff before continuing.
 
 ## Troubleshooting
 

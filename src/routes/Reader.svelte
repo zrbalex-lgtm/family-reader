@@ -329,7 +329,7 @@
         const settingsReady = loadReaderSettings(userId);
         const found = await findBookById(bookId);
         if (!found) throw new Error('This book is no longer in the library.');
-        if (found.kind !== 'fb2') throw new Error('Documents open in a later stage.');
+        if (found.kind !== 'fb2') { navigate('/view/' + bookId, { replace: true }); return; }
         if (!alive) return;
         record = found;
         // The server position is fetched in parallel with the download.

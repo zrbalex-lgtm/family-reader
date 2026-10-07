@@ -53,7 +53,8 @@ export async function localProgress(owner, bookId) {
 export async function saveProgress(owner, bookId, position, percent) {
   if (!owner || owner !== userId) return;
   const entry = {
-    position: { section: position.section, paragraph: position.paragraph, charOffset: position.charOffset },
+    // FB2: {section, paragraph, charOffset}; DOCX: {page, scrollRatio, zoom, dark}. Stored as plain JSON.
+    position: JSON.parse(JSON.stringify(position)),
     percent: Math.round(Math.min(100, Math.max(0, percent)) * 100) / 100,
     updatedAt: Date.now(),
     deviceLabel: deviceLabel(),

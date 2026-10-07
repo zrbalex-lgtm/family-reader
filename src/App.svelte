@@ -9,6 +9,7 @@
   import Library from './routes/Library.svelte';
   import Settings from './routes/Settings.svelte';
   import Reader from './routes/Reader.svelte';
+  import DocViewer from './routes/DocViewer.svelte';
   import { setLibraryUser, uploads } from './lib/library.js';
   import { setSyncUser, startProgressSync } from './lib/sync.js';
 
@@ -16,7 +17,8 @@
   const name = $derived(displayName($auth));
   const initials = $derived([...name][0]?.toUpperCase() || 'R');
   const readingId = $derived($route.startsWith('/read/') ? decodeURIComponent($route.slice('/read/'.length)) : '');
-  const pageTitle = $derived(!$auth.session ? 'Sign in' : readingId ? 'Reading' : $route === '/settings' ? 'Settings' : 'Library');
+  const viewingId = $derived($route.startsWith('/view/') ? decodeURIComponent($route.slice('/view/'.length)) : '');
+  const pageTitle = $derived(!$auth.session ? 'Sign in' : readingId ? 'Reading' : viewingId ? 'Document' : $route === '/settings' ? 'Settings' : 'Library');
 
   onMount(() => {
     const stopRouter = startRouter();
@@ -65,6 +67,8 @@
   <Login />
 {:else if readingId}
   {#key readingId + ':' + $auth.session.user.id}<Reader bookId={readingId} />{/key}
+{:else if viewingId}
+  {#key viewingId + ':' + $auth.session.user.id}<DocViewer bookId={viewingId} />{/key}
 {:else}
   <header class="app-header">
     <a class="brand-link" href="#/library" aria-label="Family Reader library"><Brand /></a>

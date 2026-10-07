@@ -106,13 +106,12 @@
     try { localStorage.setItem(VIEW_KEY, next); } catch { /* Storage unavailable: keep the choice for this visit. */ }
   }
   function openBook(book) {
-    if (book.kind === 'fb2') navigate('/read/' + book.id);
-    else selected = book;
+    navigate((book.kind === 'fb2' ? '/read/' : '/view/') + book.id);
   }
   function readSelected() {
-    const id = selected.id;
+    const book = selected;
     selected = null;
-    navigate('/read/' + id);
+    navigate((book.kind === 'fb2' ? '/read/' : '/view/') + book.id);
   }
   function formatDate(value) {
     return new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(value));
@@ -195,16 +194,17 @@
     <div class={view === 'list' ? 'book-list' : 'book-grid'}>
       {#each visible as book (book.id)}
         <article class="book-card">
-          <button class="book-open" type="button" onclick={() => openBook(book)} aria-label={(book.kind === 'fb2' ? 'Read ' : 'View details for ') + book.title}>
-            <BookCover {book} progress={$progress.get(book.id)?.percent ?? null} />
+          <button class="book-open" type="button" onclick={() => openBook(book)} aria-label={(book.kind === 'fb2' ? 'Read ' : 'Open ') + book.title}>
+            <!-- Progress is shown for FB2 books only; songbooks are browsed, not finished. -->
+            <BookCover {book} progress={book.kind === 'fb2' ? $progress.get(book.id)?.percent ?? null : null} />
             <span class="book-title">{book.title}</span>
             <span class="book-author">{book.author || (book.kind === 'docx' ? 'Document' : 'Unknown author')}</span>
             {#if book.series}<span class="book-series-line">{book.series}{#if book.series_index !== null} · {book.series_index}{/if}</span>{/if}
           </button>
           <div class="book-card-footer">
-            <span class="book-progress">{#if $progress.has(book.id)}{progressLabel($progress.get(book.id).percent)}{/if}</span>
+            <span class="book-progress">{#if book.kind === 'fb2' && $progress.has(book.id)}{progressLabel($progress.get(book.id).percent)}{/if}</span>
             <span class="book-series">{book.series || formatBytes(book.size_bytes)}{#if book.series && book.series_index !== null} · {book.series_index}{/if}</span>
-            {#if book.kind === 'fb2'}<button class="icon-button details-book" type="button" aria-label={'Details for ' + book.title} title="Book details" onclick={() => selected = book}><Icon name="info" size={18} /></button>{/if}
+            <button class="icon-button details-book" type="button" aria-label={'Details for ' + book.title} title="Details" onclick={() => selected = book}><Icon name="info" size={18} /></button>
             <button class="icon-button delete-book" type="button" aria-label={'Delete ' + book.title} title="Delete from library" onclick={() => confirmDelete(book)} disabled={!online}><Icon name="trash" size={18} /></button>
           </div>
         </article>
@@ -233,7 +233,7 @@
       </div>
     </div>
     {#if selected.annotation}<p class="annotation">{selected.annotation}</p>{/if}
-    <div class="detail-footer">{#if selected.kind === 'fb2'}<button class="button primary" type="button" onclick={readSelected}><Icon name="book" size={18} /> Read</button>{:else}<p class="muted">Documents open in a later stage.</p>{/if}<button class="button danger-outline" onclick={() => confirmDelete(selected)} disabled={!online}><Icon name="trash" size={18} /> Delete</button></div>
+    <div class="detail-footer"><button class="button primary" type="button" onclick={readSelected}><Icon name={selected.kind === 'fb2' ? 'book' : 'document'} size={18} /> {selected.kind === 'fb2' ? 'Read' : 'Open'}</button><button class="button danger-outline" onclick={() => confirmDelete(selected)} disabled={!online}><Icon name="trash" size={18} /> Delete</button></div>
   </Modal>
 {/if}
 

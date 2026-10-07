@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { supabase } from '../lib/supabase.js';
+  import { cachedCover, rememberCover } from '../lib/offline.js';
   import Icon from './Icon.svelte';
   // progress: reading percent 0–100, or null when the book has not been opened.
   let { book, progress = null } = $props();
@@ -17,8 +18,14 @@
     async function load() {
       if (!book.cover_path) return;
       try {
-        const { data, error } = await supabase.storage.from('library').download(book.cover_path);
-        if (error) throw error;
+        // Covers are cached on the device so the library looks the same offline.
+        let data = await cachedCover(book.cover_path);
+        if (!data) {
+          const result = await supabase.storage.from('library').download(book.cover_path);
+          if (result.error) throw result.error;
+          data = result.data;
+          rememberCover(book.cover_path, data);
+        }
         if (!alive) return;
         objectUrl = URL.createObjectURL(data);
         url = objectUrl;

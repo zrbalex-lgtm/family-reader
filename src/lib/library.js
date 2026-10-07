@@ -3,6 +3,7 @@ import { supabase } from './supabase.js';
 import { validateFile } from './files.js';
 import { createCleanupJournal, cleanupUnreferencedFiles } from './cleanup.js';
 import { listBooks, findBookByHash, findBookById, insertBook, deleteBookRow, uploadObject, friendlyLibraryError } from './library-api.js';
+import { cachedLibrary, rememberLibrary, refreshOfflineIndex } from './offline.js';
 
 export const library = writable({ books: [], loading: false, error: '', cleanupPending: 0, cleanupMessage: '', cleaning: false });
 export const uploads = writable([]);
@@ -64,14 +65,27 @@ export async function refreshLibrary() {
   fetchController = controller;
   const timeout = setTimeout(() => controller.abort(), 30000);
   library.update((state) => ({ ...state, loading: true, error: '' }));
+  // Show the saved list at once (and offline) while the server list loads.
+  if (!get(library).books.length) {
+    const saved = await cachedLibrary();
+    void refreshOfflineIndex();
+    if (saved && version === generation && !get(library).books.length) library.update((state) => ({ ...state, books: saved }));
+  }
+  if (!navigator.onLine) {
+    library.update((state) => ({ ...state, loading: false }));
+    clearTimeout(timeout);
+    return;
+  }
   try {
     const books = await listBooks(controller.signal);
     if (version === generation && fetchController === controller) {
       library.update((state) => ({ ...state, books, loading: false }));
+      void rememberLibrary(books).then(refreshOfflineIndex);
     }
   } catch (error) {
     if (version === generation && fetchController === controller) {
-      library.update((state) => ({ ...state, loading: false, error: friendlyLibraryError(error, 'Could not load the library. Check your connection and try again.') }));
+      const offlineCopy = get(library).books.length > 0;
+      library.update((state) => ({ ...state, loading: false, error: offlineCopy ? 'Could not refresh the library; showing the saved copy.' : friendlyLibraryError(error, 'Could not load the library. Check your connection and try again.') }));
     }
   } finally { clearTimeout(timeout); }
 }

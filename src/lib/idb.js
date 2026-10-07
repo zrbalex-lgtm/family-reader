@@ -1,8 +1,11 @@
 // Minimal key-value storage on IndexedDB, scoped to this Supabase project and base path.
 // Falls back to memory when IndexedDB is unavailable (some private modes), so reading still works.
-// 'cache' holds derived data such as DOCX song lists (keyed by file hash).
-const STORES = ['progress', 'queue', 'settings', 'cache'];
-const VERSION = 2;
+// progress/queue/settings: personal, keyed "<userId>:<id>".
+// cache: derived or shared data (song lists, library list, covers, personal bookmark copies keyed by user).
+// files/fileMeta: downloaded book files (shared family library) and their sizes/last use.
+// bookmarkQueue: bookmark changes made offline, keyed "<userId>:<bookmarkId>".
+const STORES = ['progress', 'queue', 'settings', 'cache', 'files', 'fileMeta', 'bookmarkQueue'];
+const VERSION = 3;
 
 let databasePromise = null;
 const memory = new Map(STORES.map((name) => [name, new Map()]));

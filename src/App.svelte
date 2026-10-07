@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
-  import { auth, startAuth, displayName, refreshProfile } from './lib/auth.js';
+  import { get } from 'svelte/store';
+  import { auth, startAuth, displayName, refreshProfile, reconnectAuth } from './lib/auth.js';
   import { configurationError } from './lib/supabase.js';
   import { route, startRouter, navigate } from './lib/router.js';
   import Brand from './components/Brand.svelte';
@@ -12,6 +13,8 @@
   import DocViewer from './routes/DocViewer.svelte';
   import { setLibraryUser, uploads } from './lib/library.js';
   import { setSyncUser, startProgressSync } from './lib/sync.js';
+  import { flushBookmarks } from './lib/bookmarks.js';
+  import { updateReady, applyUpdate } from './lib/pwa.js';
 
   let online = $state(navigator.onLine);
   const name = $derived(displayName($auth));
@@ -24,7 +27,15 @@
     const stopRouter = startRouter();
     const stopAuth = startAuth();
     const stopSync = startProgressSync();
-    const updateOnline = () => { online = navigator.onLine; };
+    const updateOnline = () => {
+      online = navigator.onLine;
+      // Send bookmark changes made offline.
+      if (online) {
+        reconnectAuth();
+        void flushBookmarks(get(auth).session?.user.id);
+        if (!get(auth).profile) void refreshProfile();
+      }
+    };
     window.addEventListener('online', updateOnline);
     window.addEventListener('offline', updateOnline);
     return () => {
@@ -43,6 +54,7 @@
   $effect(() => {
     setLibraryUser($auth.session?.user.id || null);
     setSyncUser($auth.session?.user.id || null);
+    if ($auth.session) setTimeout(() => void flushBookmarks($auth.session?.user.id), 0);
   });
 </script>
 
@@ -70,13 +82,19 @@
 {:else if viewingId}
   {#key viewingId + ':' + $auth.session.user.id}<DocViewer bookId={viewingId} />{/key}
 {:else}
-  <header class="app-header">
+  <!-- The library has its own compact header. -->
+  {#if $route !== '/library'}<header class="app-header">
     <a class="brand-link" href="#/library" aria-label="Family Reader library"><Brand /></a>
     <nav aria-label="Main navigation"><a href="#/library" class:current={$route === '/library'} aria-current={$route === '/library' ? 'page' : undefined} class="library-link">Library</a><a class="account-link" class:current={$route === '/settings'} href="#/settings" aria-label={`Settings for ${name}`} aria-current={$route === '/settings' ? 'page' : undefined}><span class="avatar">{initials}</span><span class="account-name">{name}</span><Icon name="settings" size={19} /></a></nav>
-  </header>
+  </header>{/if}
   {#if !online}<p class="connection-banner" role="status">You’re offline. Library and account changes need a connection.</p>{/if}
   {#if $auth.profileError}<div class="connection-banner error" role="alert"><span>{$auth.profileError}</span><button class="text-button" onclick={refreshProfile} disabled={$auth.profileLoading}>{$auth.profileLoading ? 'Retrying…' : 'Try again'}</button></div>{/if}
   {#if $route === '/library'}{#key $auth.session.user.id}<Library />{/key}
   {:else if $route === '/settings'}<Settings />
   {:else}<main class="content" id="main" tabindex="-1"><h1>Page not found</h1><a class="button secondary" href="#/library">Back to library</a></main>{/if}
+{/if}
+
+<!-- A new version was downloaded; it is applied only when the user chooses (never mid-reading). -->
+{#if $updateReady && !readingId && !viewingId}
+  <div class="update-toast" role="status"><span>A new version is available.</span><button class="button primary" type="button" onclick={applyUpdate}>Reload</button></div>
 {/if}

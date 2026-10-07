@@ -1,5 +1,5 @@
 import { writable, get } from 'svelte/store';
-import { supabase } from './supabase.js';
+import { supabase, authStorageKey } from './supabase.js';
 import { usernameToEmail, usernameFromUser } from './username.js';
 
 export const auth = writable({
@@ -22,11 +22,33 @@ export async function refreshProfile() {
     auth.update((state) => ({ ...state, profile: data, profileLoading: false }));
   } catch {
     if (version !== generation) return;
-    auth.update((state) => ({ ...state, profileLoading: false, profileError: 'Your account details could not be loaded. Check your connection and try again.' }));
+    // Offline the username is shown instead; the profile loads again when the connection returns.
+    const message = navigator.onLine ? 'Your account details could not be loaded. Check your connection and try again.' : '';
+    auth.update((state) => ({ ...state, profileLoading: false, profileError: message }));
   }
 }
 
+// Offline after the access token expired, supabase-js cannot refresh it and reports no session,
+// although the stored session still identifies the user. Reading and local saving keep working
+// with it; supabase-js replaces it with a real session once the connection returns.
+function offlineSession() {
+  if (navigator.onLine || !authStorageKey) return null;
+  try {
+    const stored = JSON.parse(localStorage.getItem(authStorageKey) || 'null');
+    return stored?.user?.id && stored.refresh_token ? { ...stored, offline: true } : null;
+  } catch {
+    return null;
+  }
+}
+
+// Called when the connection returns: lets supabase-js refresh the token and report the session.
+export function reconnectAuth() {
+  if (!supabase || !get(auth).session?.offline) return;
+  supabase.auth.getSession().then(({ data }) => { if (data.session) acceptSession(data.session); }).catch(() => {});
+}
+
 function acceptSession(session) {
+  session ||= offlineSession();
   const previousId = get(auth).session?.user.id;
   const nextId = session?.user.id;
   const changedUser = previousId !== nextId;
@@ -58,11 +80,13 @@ export function startAuth() {
   });
   supabase.auth.getSession().then(({ data: result, error }) => {
     if (!active || receivedEvent) return;
-    if (error) {
+    if (error && !offlineSession()) {
       auth.update((state) => ({ ...state, loading: false, error: 'Could not restore your session. Please sign in again.' }));
-    } else acceptSession(result.session);
+    } else acceptSession(result?.session || null);
   }).catch(() => {
-    if (active && !receivedEvent) auth.update((state) => ({ ...state, loading: false, error: 'Could not restore your session. Please sign in again.' }));
+    if (!active || receivedEvent) return;
+    if (offlineSession()) acceptSession(null);
+    else auth.update((state) => ({ ...state, loading: false, error: 'Could not restore your session. Please sign in again.' }));
   });
   return () => {
     active = false;

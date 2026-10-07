@@ -9,7 +9,8 @@
   import { renderNote } from '../lib/fb2/render.js';
   import { auth } from '../lib/auth.js';
   import { navigate } from '../lib/router.js';
-  import { findBookById, downloadObject, friendlyLibraryError } from '../lib/library-api.js';
+  import { friendlyLibraryError } from '../lib/library-api.js';
+  import { findBook, openBookBytes } from '../lib/offline.js';
   import { openFb2Book, positionAtPercent } from '../lib/fb2/book.js';
   import { Paginator } from '../lib/fb2/paginator.js';
   import { localProgress, saveProgress, fetchServerProgress, flushProgress } from '../lib/sync.js';
@@ -104,7 +105,7 @@
 
   async function loadBookmarks() {
     try {
-      bookmarks = await listBookmarks(bookId);
+      bookmarks = await listBookmarks(userId, bookId);
       bookmarksError = '';
     } catch (error) {
       bookmarksError = error.message;
@@ -127,7 +128,7 @@
     bookmarkBusy = true;
     bookmarkDialogError = '';
     try {
-      const created = await addBookmark(bookId, bookmarkDraft.position, bookmarkDraft.excerpt, bookmarkNote);
+      const created = await addBookmark(userId, bookId, bookmarkDraft.position, bookmarkDraft.excerpt, bookmarkNote);
       bookmarks = [created, ...bookmarks];
       bookmarkDraft = null;
       updatePageBookmark();
@@ -140,7 +141,7 @@
 
   async function removeBookmark(bookmark) {
     try {
-      await deleteBookmark(bookmark.id);
+      await deleteBookmark(userId, bookmark.id);
       bookmarks = bookmarks.filter((item) => item.id !== bookmark.id);
       bookmarksError = '';
     } catch (error) {
@@ -327,14 +328,16 @@
       try {
         if (!UUID.test(bookId)) throw new Error('This book could not be found.');
         const settingsReady = loadReaderSettings(userId);
-        const found = await findBookById(bookId);
+        // Works offline from the saved library list.
+        const found = await findBook(bookId);
         if (!found) throw new Error('This book is no longer in the library.');
         if (found.kind !== 'fb2') { navigate('/view/' + bookId, { replace: true }); return; }
         if (!alive) return;
         record = found;
         // The server position is fetched in parallel with the download.
         const serverPromise = fetchServerProgress(userId, bookId).catch(() => null);
-        const bytes = await downloadObject(found.file_path);
+        // The downloaded copy is used when available, so opened books work offline.
+        const bytes = await openBookBytes(found);
         if (!alive) return;
         const opened = await openFb2Book(bytes, found.file_path.endsWith('.fb2.zip'));
         if (!alive) { opened.dispose(); return; }

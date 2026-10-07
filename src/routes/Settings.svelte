@@ -3,6 +3,8 @@
   import { auth, saveDisplayName, signOut } from '../lib/auth.js';
   import { usernameFromUser } from '../lib/username.js';
   import { loadReaderSettings, resetReaderSettings, currentDeviceClass } from '../lib/reader-settings.js';
+  import { offlineFiles, offlineUsage, refreshOfflineIndex, clearOfflineFiles, OFFLINE_LIMIT } from '../lib/offline.js';
+  import { formatBytes } from '../lib/files.js';
 
   let name = $state('');
   let saving = $state(false);
@@ -10,6 +12,14 @@
   let error = $state('');
   let saved = $state(false);
   let readerReset = $state(false);
+  let clearing = $state(false);
+  const usage = $derived(offlineUsage($offlineFiles));
+  $effect(() => { void refreshOfflineIndex(); });
+
+  async function clearDownloads() {
+    clearing = true;
+    try { await clearOfflineFiles(); } finally { clearing = false; }
+  }
   $effect(() => { void loadReaderSettings($auth.session?.user.id); });
   $effect(() => { name = $auth.profile?.display_name || usernameFromUser($auth.session?.user); });
 
@@ -49,6 +59,10 @@
       </div>
     </form>
     {#if error}<p class="alert error" role="alert">{error}</p>{/if}
+  </section>
+  <section class="settings-card signout-card" aria-labelledby="offline-title">
+    <div><h2 id="offline-title">Offline storage</h2><p class="muted">{usage.count} {usage.count === 1 ? 'file' : 'files'} downloaded on this device · {formatBytes(usage.bytes)} of {formatBytes(OFFLINE_LIMIT)}. Opened books and songbooks are kept automatically; the least recently opened are removed when the limit is reached. Reading progress and bookmarks are not affected.</p></div>
+    <button class="button secondary" type="button" onclick={clearDownloads} disabled={clearing || !usage.count}>{clearing ? 'Clearing…' : 'Clear downloads'}</button>
   </section>
   <section class="settings-card signout-card" aria-labelledby="reader-title">
     <div><h2 id="reader-title">Reader</h2><p class="muted">Fonts, size, spacing and theme are changed inside a book with the Aa button. They are saved separately for each device type; this device is a {currentDeviceClass()}.</p></div>

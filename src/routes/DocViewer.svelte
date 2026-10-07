@@ -4,7 +4,8 @@
   import SongList from '../components/SongList.svelte';
   import { auth } from '../lib/auth.js';
   import { navigate } from '../lib/router.js';
-  import { findBookById, downloadObject, friendlyLibraryError } from '../lib/library-api.js';
+  import { friendlyLibraryError } from '../lib/library-api.js';
+  import { findBook, openBookBytes } from '../lib/offline.js';
   import { localProgress, saveProgress, fetchServerProgress, flushProgress } from '../lib/sync.js';
   import { idbGet, idbSet } from '../lib/idb.js';
   import { renderDocx, createSearch, buildSongList } from '../lib/docx/viewer.js';
@@ -398,13 +399,15 @@
     (async () => {
       try {
         if (!UUID.test(bookId)) throw new Error('This document could not be found.');
-        const found = await findBookById(bookId);
+        // Works offline from the saved library list.
+        const found = await findBook(bookId);
         if (!found) throw new Error('This document is no longer in the library.');
         if (found.kind !== 'docx') { navigate('/read/' + bookId, { replace: true }); return; }
         if (!alive) return;
         record = found;
         const serverPromise = fetchServerProgress(userId, bookId).catch(() => null);
-        const bytes = await downloadObject(found.file_path);
+        // The downloaded copy is used when available, so opened books work offline.
+        const bytes = await openBookBytes(found);
         if (!alive) return;
         const rendered = await renderDocx(bytes, pagesBox, stylesBox);
         revokeUrls = rendered.cleanup;

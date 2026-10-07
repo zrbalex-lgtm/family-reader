@@ -14,8 +14,20 @@
   // Progress reaches 100 only when the reader shows the end-of-book screen.
   const FINISHED = 100;
 
-  function progressLabel(percent) {
-    return percent >= FINISHED ? 'Finished' : Math.floor(percent) + '%';
+  // FB2: percent or Finished. DOCX songbooks: "Page X / Y" (they are browsed, never finished).
+  function progressLabel(book) {
+    const entry = $progress.get(book.id);
+    if (!entry) return '';
+    if (book.kind === 'docx') {
+      const page = Math.max(0, Math.trunc(Number(entry.position?.page)) || 0) + 1;
+      const pages = Math.trunc(Number(entry.position?.pages)) || 0;
+      return pages ? `Page ${page} / ${pages}` : `Page ${page}`;
+    }
+    return entry.percent >= FINISHED ? 'Finished' : Math.floor(entry.percent) + '%';
+  }
+
+  function openPath(book) {
+    return (book.kind === 'fb2' ? '/read/' : '/view/') + book.id;
   }
 
   let kind = $state('fb2');
@@ -32,9 +44,9 @@
   let notice = $state('');
   const visible = $derived(filterAndSortBooks($library.books, kind, search, sort));
   const count = $derived($library.books.filter((book) => book.kind === kind).length);
-  // Books with saved progress, most recently read first; finished books drop out of the row.
-  const continueBooks = $derived(kind !== 'fb2' || search ? [] : $library.books
-    .filter((book) => book.kind === 'fb2' && $progress.has(book.id) && $progress.get(book.id).percent < FINISHED)
+  // Books and songbooks with saved progress, most recently opened first; finished books drop out.
+  const continueBooks = $derived(search ? [] : $library.books
+    .filter((book) => $progress.has(book.id) && (book.kind === 'docx' || $progress.get(book.id).percent < FINISHED))
     .sort((a, b) => $progress.get(b.id).updatedAt - $progress.get(a.id).updatedAt)
     .slice(0, 12));
   const uploading = $derived($uploads.some((row) => ['queued', 'processing'].includes(row.status)));
@@ -106,12 +118,12 @@
     try { localStorage.setItem(VIEW_KEY, next); } catch { /* Storage unavailable: keep the choice for this visit. */ }
   }
   function openBook(book) {
-    navigate((book.kind === 'fb2' ? '/read/' : '/view/') + book.id);
+    navigate(openPath(book));
   }
   function readSelected() {
     const book = selected;
     selected = null;
-    navigate((book.kind === 'fb2' ? '/read/' : '/view/') + book.id);
+    navigate(openPath(book));
   }
   function formatDate(value) {
     return new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(value));
@@ -165,13 +177,12 @@
       <h2 id="continue-title">Continue reading</h2>
       <div class="continue-row">
         {#each continueBooks as book (book.id)}
-          {@const percent = $progress.get(book.id).percent}
-          <button class="continue-card" type="button" onclick={() => navigate('/read/' + book.id)} aria-label={'Continue ' + book.title + ', ' + progressLabel(percent)}>
-            <BookCover {book} progress={percent} />
+          <button class="continue-card" type="button" onclick={() => navigate(openPath(book))} aria-label={'Continue ' + book.title + ', ' + progressLabel(book)}>
+            <BookCover {book} progress={book.kind === 'fb2' ? $progress.get(book.id).percent : null} />
             <span class="continue-text">
               <span class="book-title">{book.title}</span>
-              <span class="book-author">{book.author || 'Unknown author'}</span>
-              <span class="continue-percent">{progressLabel(percent)}</span>
+              <span class="book-author">{book.author || (book.kind === 'docx' ? 'Document' : 'Unknown author')}</span>
+              <span class="continue-percent">{progressLabel(book)}</span>
             </span>
           </button>
         {/each}
@@ -195,14 +206,14 @@
       {#each visible as book (book.id)}
         <article class="book-card">
           <button class="book-open" type="button" onclick={() => openBook(book)} aria-label={(book.kind === 'fb2' ? 'Read ' : 'Open ') + book.title}>
-            <!-- Progress is shown for FB2 books only; songbooks are browsed, not finished. -->
+            <!-- The cover bar is for FB2 books only; songbooks show "Page X / Y" below. -->
             <BookCover {book} progress={book.kind === 'fb2' ? $progress.get(book.id)?.percent ?? null : null} />
             <span class="book-title">{book.title}</span>
             <span class="book-author">{book.author || (book.kind === 'docx' ? 'Document' : 'Unknown author')}</span>
             {#if book.series}<span class="book-series-line">{book.series}{#if book.series_index !== null} · {book.series_index}{/if}</span>{/if}
           </button>
           <div class="book-card-footer">
-            <span class="book-progress">{#if book.kind === 'fb2' && $progress.has(book.id)}{progressLabel($progress.get(book.id).percent)}{/if}</span>
+            <span class="book-progress">{progressLabel(book)}</span>
             <span class="book-series">{book.series || formatBytes(book.size_bytes)}{#if book.series && book.series_index !== null} · {book.series_index}{/if}</span>
             <button class="icon-button details-book" type="button" aria-label={'Details for ' + book.title} title="Details" onclick={() => selected = book}><Icon name="info" size={18} /></button>
             <button class="icon-button delete-book" type="button" aria-label={'Delete ' + book.title} title="Delete from library" onclick={() => confirmDelete(book)} disabled={!online}><Icon name="trash" size={18} /></button>

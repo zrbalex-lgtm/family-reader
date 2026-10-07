@@ -25,6 +25,8 @@
     moon: 'M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z',
     chevronUp: 'm6 15 6-6 6 6',
     chevronDown: 'm6 9 6 6 6-6',
+    chevronLeft: 'm15 6-6 6 6 6',
+    chevronRight: 'm9 6 6 6-6 6',
     refresh: 'M20 8a8 8 0 0 0-14-3L3 8m0-5v5h5m-4 8a8 8 0 0 0 14 3l3-3m0 5v-5h-5',
   };
 </script>

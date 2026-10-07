@@ -41,6 +41,40 @@ Use 2–3 real songbooks, ideally the most complicated ones.
 - [ ] A DOCX with a web link: the link opens in a new tab. A damaged/renamed non-DOCX shows a clear error.
 - [ ] FB2 books still open in the reader; library progress badges are unchanged for books.
 
+## Fixes after Stage 6
+
+**Root causes**
+
+- **Position never restored.** When the viewer closed, it saved the position one last time by reading the scroll offset from the page. Svelte had already removed the viewer from the page at that moment, and a detached element reports a scroll offset of 0. So every close overwrote the real position with page 1, and because that save was the newest, it won on the next open. In addition, leaving the app on iPhone/iPad only sent already-queued saves; a save still waiting in its short timer was lost when Safari froze the tab. Now the position is kept as plain state (`{page, pages, zoom, mode, dark}`) and saved on every page change, zoom/mode change, dark toggle, on close, on `visibilitychange` and on `pagehide` — never read from the DOM. It is restored only after rendering, font substitution and tab stops are final.
+- **▲▼ page buttons stuck.** "Next page" scrolled to 8 px above the next page's top (a margin), and the page detection then still counted that position as the previous page, so the next press scrolled to the same place again. Replaced by real page-by-page navigation.
+
+**Changes**
+
+- **One page at a time** (`src/lib/docx/pager.js`): only the current page and its neighbours are displayed (fast on old iPads with 250-page songbooks). Swipe, tap the left/right third, ◀ ▶ buttons, ←/→/↑/↓, PageUp/PageDown, Space/Shift+Space move exactly one page with a slide animation; Home/End jump to the first/last page.
+- **Zoomed in**: one-finger drag pans inside the page; dragging on past the left/right edge follows the finger and turns the page when released (springs back if short). Tap zones and ◀ ▶ still turn pages. Pinch zoom keeps the spot under the fingers in place. Desktop: wheel pans, scrolling on past the page bottom/top turns the page, Ctrl/⌘ + wheel zooms.
+- **Zoom modes** Fit page (default), Fit width and 100 % / custom are kept per document and re-applied on rotation.
+- **Song list** (list button): built when the document opens and cached per file in IndexedDB, so reopening is instant. Word heading styles ("Heading 1" / "Заголовок 1", any style or paragraph with an outline level) are used first. Without headings (or with only a few), the first line of each page is used, but only when it is formatted like most other page starts, so a song continuing on the next page is not listed twice. Filter box (case-insensitive, ё = е), current song highlighted, tap to jump.
+- **Continue reading** now includes songbooks with **Page X / Y**; grid and list cards show the same.
+- Fonts are now checked and substituted **before** rendering, so chord tab stops are measured with the final fonts.
+
+### Test the fixes
+
+Songbook (110–250 songs) on the iPad (iPadOS 16) and iPhone
+- [ ] Opens on page 1 in Fit page; **Page 1 / N** in the toolbar, N matches Word.
+- [ ] Swipe left/right, tap the right/left third, ◀ ▶ buttons: exactly one page per action, with a smooth slide. No turn before page 1 or after the last page (short spring-back).
+- [ ] Fit width: drag up/down pans inside the page; a horizontal swipe turns the page.
+- [ ] Pinch to ~250 %: one finger pans in all directions; at the right edge, keep dragging left → page turns; tap zones still turn pages. Pinch out back to Fit page.
+- [ ] Rotate in Fit page and Fit width: the page refits.
+- [ ] Song list: opens fast; titles match the songs; a song spanning two pages is listed once; filter "елка" finds "Ёлка"; current song highlighted; tap jumps to its page. Close and reopen the document: the list appears instantly.
+- [ ] Restore: go to page 37, set Fit width (or a custom zoom) and light mode, go back to the library → **Continue reading** shows "Page 37 / N". Reopen → page 37, same zoom/mode and light mode.
+- [ ] Restore after leaving the app: go to page 12, switch to another app (or lock the iPad) for a minute, close the Safari tab or app, reopen → page 12.
+- [ ] Open the same songbook on a second device → the last page from the first device.
+- [ ] Search: matches on other pages open that page and centre the match; ▲▼ walk through all matches.
+- [ ] Chords still aligned (compare 3 songs with Word), including on the iPad with substituted fonts.
+
+Desktop
+- [ ] ←/→, PageUp/PageDown, Space, Home/End; mouse wheel pans and turns at the page edge; Ctrl + wheel zooms around the cursor.
+
 ## Scope boundary
 
 Stage 7 (PWA, installation, offline cache for books and documents, offline queue polish) is next.

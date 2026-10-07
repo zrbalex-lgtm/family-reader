@@ -1,22 +1,26 @@
-/* DOCX songbook viewer. Pages are scaled as an image inside a sized scroll area. */
+/* DOCX songbook viewer: one page at a time. The stage clips; the content is moved and
+   scaled by the pager ("camera"); only the current page and its neighbours are displayed. */
 .doc-viewer { position: fixed; inset: 0; overflow: hidden; background: #000; color: var(--text); outline: none; }
 .doc-viewer.light { background: #3a4046; }
 .doc-styles { display: none; }
-.doc-scroller {
-  position: absolute; inset: 0; overflow: auto; overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  /* One-finger panning stays native; pinch zoom is handled by the app. */
-  touch-action: pan-x pan-y;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+.doc-stage {
+  position: absolute; overflow: hidden;
+  top: env(safe-area-inset-top); right: env(safe-area-inset-right); bottom: env(safe-area-inset-bottom); left: env(safe-area-inset-left);
+  /* All gestures (pan, pinch, page turns) are handled by the app. */
+  touch-action: none;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
-.doc-sizer { position: relative; margin: 0 auto; overflow: hidden; }
-.doc-content { position: absolute; top: 0; left: 0; width: -webkit-max-content; width: max-content; transform-origin: 0 0; }
+.doc-content { position: absolute; top: 0; left: 0; width: -webkit-max-content; width: max-content; transform-origin: 0 0; will-change: transform; }
 
-/* Override docx-preview's grey wrapper; keep pages separated. */
-.doc-content .docx-wrapper { background: transparent; padding: 12px 0 4px; }
-.doc-content .docx-wrapper > section.docx { margin-bottom: 12px; box-shadow: 0 2px 10px rgba(0, 0, 0, .45); }
+/* While rendering, pages stack normally (tab stops are measured then); afterwards they are paged. */
+.doc-content .docx-wrapper { background: transparent; padding: 0; }
+.doc-content .docx-wrapper > section.docx { margin: 0 0 12px; box-shadow: 0 2px 10px rgba(0, 0, 0, .45); }
+.doc-content.doc-paged .docx-wrapper { display: block; position: relative; }
+.doc-content.doc-paged .docx-wrapper > section.docx { position: absolute; top: 0; left: 0; margin: 0; display: none; }
+.doc-content.doc-paged .docx-wrapper > section.docx.doc-visible { display: flex; }
 /* Dark mode inverts each page; photos and highlights are inverted back so they look normal. */
 .doc-content.dark .docx-wrapper > section.docx { filter: invert(1) hue-rotate(180deg); box-shadow: none; }
+.doc-content.dark.doc-paged .docx-wrapper > section.docx { box-shadow: none; }
 .doc-content.dark section.docx img,
 .doc-content.dark section.docx svg,
 .doc-content.dark mark.doc-match { filter: invert(1) hue-rotate(180deg); }
@@ -61,3 +65,9 @@
   padding: .15rem .5rem; border-radius: 6px; background: rgba(0, 0, 0, .55); color: #c9c7c2;
   font: 400 .72rem/1.3 var(--font-ui); font-variant-numeric: tabular-nums; pointer-events: none;
 }
+
+/* Song list: reuses the reader's contents sheet. */
+.song-list .reader-contents-head h2 { font-size: 1rem; padding: .6rem 0; }
+.song-filter { position: relative; margin: .6rem 0 .2rem; }
+.song-filter > svg { position: absolute; left: .8rem; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.song-filter input { min-height: 42px; padding: .5rem .8rem .5rem 2.4rem; font-size: 1rem; }

@@ -201,7 +201,9 @@ src/components/ReaderContents.svelte  Contents and bookmarks sheet
 src/components/EndOfBook.svelte       End-of-book screen
 src/lib/bookmarks.js         Private bookmarks via Supabase
 src/routes/DocViewer.svelte  DOCX songbook viewer screen
-src/lib/docx/viewer.js       DOCX rendering, sanitizing, search and font checks
+src/lib/docx/viewer.js       DOCX rendering, sanitizing, search, fonts and song list
+src/lib/docx/pager.js        DOCX one-page-at-a-time layout, zoom and page turns
+src/components/SongList.svelte  Song list with filter
 src/vendor/docx-preview/     Vendored docx-preview 0.4.1 (Apache-2.0)
 src/docx.css                 DOCX viewer styling
 src/reader.css               Reader styling

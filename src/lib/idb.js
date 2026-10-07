@@ -1,7 +1,8 @@
 // Minimal key-value storage on IndexedDB, scoped to this Supabase project and base path.
 // Falls back to memory when IndexedDB is unavailable (some private modes), so reading still works.
-const STORES = ['progress', 'queue', 'settings'];
-const VERSION = 1;
+// 'cache' holds derived data such as DOCX song lists (keyed by file hash).
+const STORES = ['progress', 'queue', 'settings', 'cache'];
+const VERSION = 2;
 
 let databasePromise = null;
 const memory = new Map(STORES.map((name) => [name, new Map()]));

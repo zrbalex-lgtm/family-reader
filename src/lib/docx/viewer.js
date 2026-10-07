@@ -1,4 +1,6 @@
-// DOCX songbook viewer helpers: rendering with docx-preview, sanitizing, search and fonts.
+// DOCX songbook viewer helpers: rendering with docx-preview, sanitizing, search, fonts and song list.
+import { openArchive, readEntry } from '../archives.js';
+import { children, decodeXml, parseXml } from '../xml.js';
 
 // Rendering options. Embedded HTML ("altChunks") is disabled because it would run inside an
 // iframe; comments and tracked changes are not shown. Experimental mode enables real tab stops,
@@ -46,21 +48,81 @@ function sanitize(root) {
   }
 }
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function withTimeout(promise, ms) {
+  return Promise.race([Promise.resolve(promise).catch(() => {}), delay(ms)]);
+}
+
+// Fonts named by the document's font table and theme, except fonts embedded in the file.
+function modelFonts(doc) {
+  const names = new Map();
+  const add = (name) => {
+    const clean = (name || '').trim();
+    if (clean && !GENERIC.has(clean.toLowerCase())) names.set(clean.toLowerCase(), clean);
+  };
+  for (const font of doc.fontTablePart?.fonts || []) if (!font.embedFontRefs?.length) add(font.name);
+  const scheme = doc.themePart?.theme?.fontScheme;
+  add(scheme?.majorFont?.latinTypeface);
+  add(scheme?.minorFont?.latinTypeface);
+  return Array.from(names.values());
+}
+
 /**
  * Renders the document into `body` (pages) and `styles` (document CSS).
- * Returns a cleanup function that revokes blob URLs created for images and embedded fonts.
+ * Missing fonts with a metric-compatible substitute are loaded before rendering, because
+ * docx-preview measures tab stops (chord positions) 500 ms after rendering.
+ * Returns { cleanup, fontIssues }: cleanup revokes blob URLs for images and embedded fonts.
  */
 export async function renderDocx(bytes, body, styles) {
-  const { renderAsync } = await import('../../vendor/docx-preview/docx-preview.mjs');
+  const { parseAsync, renderDocument } = await import('../../vendor/docx-preview/docx-preview.mjs');
+  let doc;
   try {
-    await renderAsync(bytes, body, styles, RENDER_OPTIONS);
+    doc = await parseAsync(bytes, RENDER_OPTIONS);
   } catch (error) {
-    throw new Error('This document could not be displayed. It may be damaged or use unsupported features.', { cause: error });
+    throw new Error('This document could not be opened. It may be damaged or not a Word document.', { cause: error });
   }
+
+  styles.replaceChildren();
+  body.replaceChildren();
+  await withTimeout(document.fonts?.ready, 2000);
+  const missing = modelFonts(doc).filter((name) => !fontAvailable(name));
+  const substituted = new Map();
+  await Promise.all(missing.map(async (name) => {
+    const substitute = substituteFor(name);
+    if (substitute && await aliasFont(name, substitute, styles)) substituted.set(name.toLowerCase(), substitute);
+  }));
+  if (substituted.size && document.fonts) {
+    const loads = [];
+    for (const name of missing) {
+      if (!substituted.has(name.toLowerCase())) continue;
+      for (const variant of ['', 'bold ', 'italic ']) loads.push(document.fonts.load(`${variant}16px "${name.replace(/"/g, '')}"`, 'AaАа'));
+    }
+    await withTimeout(Promise.all(loads), 4000);
+  }
+
+  let nodes;
+  try {
+    nodes = await renderDocument(doc, RENDER_OPTIONS);
+  } catch (error) {
+    throw new Error('This document could not be displayed. It may use unsupported features.', { cause: error });
+  }
+  for (const node of nodes) (node.nodeName === 'STYLE' ? styles : body).appendChild(node);
   sanitize(body);
   sanitize(styles);
   if (!body.querySelector('section.docx')) throw new Error('This document has no pages to display.');
-  return () => {
+  // Tab stops are measured from the live layout 500 ms after rendering; keep pages laid out until then.
+  if (RENDER_OPTIONS.experimental) await delay(650);
+
+  // Report only fonts the rendered text actually uses.
+  const used = new Set(usedFonts(body, styles).map((name) => name.toLowerCase()));
+  const fontIssues = missing
+    .filter((name) => used.has(name.toLowerCase()))
+    .map((name) => ({ name, substitute: substituted.get(name.toLowerCase()) || null }));
+
+  const cleanup = () => {
     const urls = new Set();
     for (const image of body.querySelectorAll('img[src^="blob:"]')) urls.add(image.getAttribute('src'));
     for (const style of styles.querySelectorAll('style')) {
@@ -68,6 +130,7 @@ export async function renderDocx(bytes, body, styles) {
     }
     for (const url of urls) URL.revokeObjectURL(url);
   };
+  return { cleanup, fontIssues };
 }
 
 // --- Search ---------------------------------------------------------------
@@ -79,7 +142,7 @@ function foldChar(character) {
   return single === 'ё' ? 'е' : single;
 }
 
-function fold(text) {
+export function fold(text) {
   let result = '';
   for (let index = 0; index < text.length; index += 1) result += foldChar(text[index]);
   return result;
@@ -230,4 +293,128 @@ export async function aliasFont(original, substitute, target) {
   } catch {
     return false;
   }
+}
+
+// --- Song list ------------------------------------------------------------
+
+const W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+const HEADING_NAME = /^(heading|заголовок)\s*\d$/i;
+
+function wAttr(element, name) {
+  return element?.getAttributeNS(W_NS, name) ?? element?.getAttribute('w:' + name) ?? null;
+}
+
+function cleanTitle(text) {
+  return text.replace(/\s+/g, ' ').trim().slice(0, 140);
+}
+
+// docx-preview's class name for a paragraph style id (see escapeClassName in the vendored file).
+function styleClass(id) {
+  return 'docx_' + id.replace(/[ .]+/g, '-').replace(/[&]+/g, 'and').toLowerCase();
+}
+
+// Paragraph styles that are headings: built-in "Heading N" / "Заголовок N", or any style with
+// an outline level, including styles based on one of those.
+async function headingClasses(zip) {
+  const entry = zip.file('word/styles.xml');
+  if (!entry) return new Set();
+  const root = parseXml(decodeXml(await readEntry(entry))).documentElement;
+  const styles = new Map();
+  for (const style of children(root, 'style')) {
+    if (wAttr(style, 'type') !== 'paragraph') continue;
+    const id = wAttr(style, 'styleId');
+    if (!id) continue;
+    const name = wAttr(children(style, 'name')[0], 'val') || '';
+    const outline = wAttr(children(children(style, 'pPr')[0], 'outlineLvl')[0], 'val');
+    styles.set(id, {
+      basedOn: wAttr(children(style, 'basedOn')[0], 'val'),
+      heading: HEADING_NAME.test(name.trim()) || (outline !== null && Number(outline) < 9),
+    });
+  }
+  const isHeading = (id, depth = 0) => {
+    const style = styles.get(id);
+    if (!style || depth > 10) return false;
+    return style.heading || (style.basedOn ? isHeading(style.basedOn, depth + 1) : false);
+  };
+  return new Set(Array.from(styles.keys()).filter((id) => isHeading(id)).map(styleClass));
+}
+
+// Texts of paragraphs that have a direct outline level (set on the paragraph, not its style).
+async function directOutlineTitles(zip) {
+  const entry = zip.file('word/document.xml');
+  if (!entry) return new Set();
+  const xml = decodeXml(await readEntry(entry));
+  // Parsing the whole document is slow on old devices; skip it when no paragraph uses an outline level.
+  if (!xml.includes('outlineLvl')) return new Set();
+  const titles = new Set();
+  for (const level of parseXml(xml).getElementsByTagNameNS(W_NS, 'outlineLvl')) {
+    const paragraph = level.parentNode?.parentNode;
+    if (paragraph?.localName !== 'p' || Number(wAttr(level, 'val')) >= 9) continue;
+    const text = Array.from(paragraph.getElementsByTagNameNS(W_NS, 't'), (node) => node.textContent).join('');
+    if (text.trim()) titles.add(fold(cleanTitle(text)));
+  }
+  return titles;
+}
+
+function fromHeadings(pages, classes, direct) {
+  const songs = [];
+  pages.forEach((page, index) => {
+    for (const paragraph of page.querySelectorAll('article p')) {
+      const title = cleanTitle(paragraph.textContent);
+      if (!title) continue;
+      const styled = Array.from(paragraph.classList).some((name) => classes.has(name));
+      if (styled || direct.has(fold(title))) songs.push({ title, page: index });
+    }
+  });
+  return songs;
+}
+
+// No headings: use the first non-empty paragraph of each page, but only when it is formatted
+// like most other page starts (so a song continuing on the next page is not listed twice).
+function fromPageStarts(pages) {
+  const candidates = [];
+  pages.forEach((page, index) => {
+    const paragraph = Array.from(page.querySelectorAll('article p')).find((element) => element.textContent.trim());
+    if (!paragraph) return;
+    const sample = Array.from(paragraph.querySelectorAll('span')).find((span) => span.textContent.trim()) || paragraph;
+    const style = getComputedStyle(sample);
+    const size = Math.round(parseFloat(style.fontSize) * 2) / 2;
+    const bold = (parseInt(style.fontWeight, 10) || 400) >= 600;
+    candidates.push({ title: cleanTitle(paragraph.textContent), page: index, size, bold, key: `${paragraph.className}|${size}|${bold}` });
+  });
+  if (!candidates.length) return [];
+  const counts = new Map();
+  for (const candidate of candidates) counts.set(candidate.key, (counts.get(candidate.key) || 0) + 1);
+  const [majorityKey] = Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0];
+  const majority = candidates.find((candidate) => candidate.key === majorityKey);
+  return candidates
+    .filter((candidate) => candidate.key === majorityKey || (candidate.bold === majority.bold && candidate.size >= majority.size))
+    .map(({ title, page }) => ({ title, page }));
+}
+
+/**
+ * Builds the song list: [{ title, page }] with zero-based page indexes.
+ * Prefers Word headings; falls back to page starts when headings are absent or too few
+ * to be a song list (for example only a book title and a few section headings).
+ */
+export async function buildSongList(bytes, pages) {
+  let classes = new Set();
+  let direct = new Set();
+  try {
+    const zip = await openArchive(bytes);
+    [classes, direct] = await Promise.all([headingClasses(zip), directOutlineTitles(zip)]);
+  } catch {
+    // Unreadable styles: use the page-start fallback.
+  }
+  const headings = classes.size || direct.size ? fromHeadings(pages, classes, direct) : [];
+  let songs = headings;
+  if (headings.length < Math.max(3, pages.length * 0.25)) {
+    const starts = fromPageStarts(pages);
+    if (starts.length > headings.length) songs = starts;
+  }
+  // A title repeated at the top of the next page belongs to the same song.
+  return songs.filter((song, index) => {
+    const previous = songs[index - 1];
+    return !previous || fold(previous.title) !== fold(song.title) || song.page - previous.page > 1;
+  });
 }

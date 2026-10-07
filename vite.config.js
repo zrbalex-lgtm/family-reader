@@ -10,6 +10,10 @@ export default defineConfig(({ command, mode }) => {
   return {
     plugins: [svelte()],
     base: repositoryBase(env),
-    build: { target: 'es2022' },
+    build: {
+      // Oldest supported family device: iPad on iPadOS 16 (Safari 16). Safari 15 adds a safety margin.
+      target: ['safari15', 'ios15', 'chrome100', 'edge100', 'firefox100'],
+      cssTarget: ['safari15', 'ios15', 'chrome100', 'edge100', 'firefox100'],
+    },
   };
 });

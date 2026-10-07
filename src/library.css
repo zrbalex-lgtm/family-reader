@@ -78,7 +78,7 @@ select:focus-visible, dialog:focus-visible { outline: 2px solid var(--accent); o
 .drop-overlay > svg { color: var(--accent); }
 .drop-overlay strong { font-size: 1.4rem; font-weight: 500; }
 .drop-overlay span { color: var(--muted); font-size: .875rem; }
-.modal { width: min(660px, calc(100vw - 2rem)); max-height: calc(100svh - 2rem); padding: 1.5rem; margin: auto; border: 1px solid var(--border-hover); border-radius: 14px; background: var(--surface); color: var(--text); overflow-y: auto; overscroll-behavior: contain; box-shadow: 0 24px 90px #0008; }
+.modal { width: min(660px, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); max-height: calc(100svh - 2rem); padding: 1.5rem; margin: auto; border: 1px solid var(--border-hover); border-radius: 14px; background: var(--surface); color: var(--text); overflow-y: auto; overscroll-behavior: contain; box-shadow: 0 24px 90px #0008; }
 .modal::backdrop { background: #000b; }
 .modal-heading { display: flex; justify-content: space-between; align-items: center; gap: .8rem; padding-bottom: 1.25rem; }
 .modal-heading .icon-button { margin-right: -.4rem; flex-shrink: 0; }

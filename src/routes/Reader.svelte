@@ -92,7 +92,8 @@
     const moved = forward ? await paginator.next() : await paginator.previous();
     if (!moved) {
       saveNext = false;
-      // Forward from the last page ends the book; back from the first page does nothing.
+      // Undo any swipe offset. Forward from the last page ends the book; back from the first page does nothing.
+      paginator.settle();
       if (forward) showEnd();
     }
   }
@@ -248,7 +249,7 @@
     layoutTimer = setTimeout(async () => {
       await ensureFont(settings.font);
       if (!paginator) return;
-      paginator.setMinMargin(settings.margin);
+      paginator.setMargin(settings.margin);
       paginator.relayout();
     }, 120);
   });
@@ -258,19 +259,37 @@
     let resizeObserver = null;
     let resizeTimer = 0;
     let start = null;
+    // True once a horizontal drag has started; the page then follows the finger.
+    let swiping = false;
 
     const pointerDown = (event) => {
       if (!event.isPrimary || event.button > 0) return;
-      start = { x: event.clientX, y: event.clientY };
+      start = { x: event.clientX, y: event.clientY, id: event.pointerId };
+      swiping = false;
+    };
+    const pointerMove = (event) => {
+      if (!start || event.pointerId !== start.id) return;
+      const dx = event.clientX - start.x;
+      const dy = event.clientY - start.y;
+      if (!swiping) {
+        if (Math.abs(dx) <= TAP_SLOP || Math.abs(dx) <= Math.abs(dy)) return;
+        swiping = true;
+        // Capture only once dragging, so plain taps still reach note markers.
+        try { surface.setPointerCapture(event.pointerId); } catch { /* Not supported: moves still arrive while over the page. */ }
+      }
+      paginator?.drag(dx);
     };
     const pointerUp = (event) => {
-      if (!start || !event.isPrimary) return;
+      if (!start || event.pointerId !== start.id) return;
       applyFullscreenPreference();
       const dx = event.clientX - start.x;
       const dy = event.clientY - start.y;
+      const wasSwiping = swiping;
       start = null;
-      if (Math.abs(dx) > SWIPE_DISTANCE && Math.abs(dx) > Math.abs(dy) * 1.2) {
-        void turn(dx < 0);
+      swiping = false;
+      if (wasSwiping || (Math.abs(dx) > SWIPE_DISTANCE && Math.abs(dx) > Math.abs(dy) * 1.2)) {
+        if (Math.abs(dx) > SWIPE_DISTANCE) void turn(dx < 0);
+        else paginator?.settle();
         return;
       }
       if (Math.hypot(dx, dy) > TAP_SLOP) return;
@@ -284,10 +303,21 @@
       else if (x > 2 / 3) void turn(true);
       else toolbar = true;
     };
-    const pointerCancel = () => { start = null; };
+    const pointerCancel = () => {
+      if (swiping) paginator?.settle();
+      start = null;
+      swiping = false;
+    };
+    // Browser toolbars and rotation change the visual viewport without resizing the page box.
+    const scheduleRelayout = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => paginator?.relayout(), 150);
+    };
     surface.addEventListener('pointerdown', pointerDown);
+    surface.addEventListener('pointermove', pointerMove);
     surface.addEventListener('pointerup', pointerUp);
     surface.addEventListener('pointercancel', pointerCancel);
+    window.visualViewport?.addEventListener('resize', scheduleRelayout);
     const stopFullscreenWatch = onFullscreenChange(() => {
       fullscreenActive = isFullscreen();
       if (!fullscreenActive && fullscreenWanted) fullscreenDismissed = true;
@@ -322,7 +352,7 @@
         await document.fonts?.ready;
         if (!alive) return;
         paginator = new Paginator(pageBox, book, handleChange);
-        paginator.setMinMargin($readerSettings.margin);
+        paginator.setMargin($readerSettings.margin);
         appliedLayout = layoutKey($readerSettings);
         // A finished book opens on its last page, whatever the layout on the finishing device was.
         if (startEntry?.percent >= 100) await paginator.openAtEnd();
@@ -330,10 +360,7 @@
         paginatorReady = true;
         void loadBookmarks();
         // Re-paginate after resize or rotation, keeping the first visible paragraph.
-        resizeObserver = new ResizeObserver(() => {
-          clearTimeout(resizeTimer);
-          resizeTimer = setTimeout(() => paginator?.relayout(), 150);
-        });
+        resizeObserver = new ResizeObserver(scheduleRelayout);
         resizeObserver.observe(pageBox);
         // Offer the other device's position only if it is newer and the user has not moved yet.
         if (local) {
@@ -350,8 +377,10 @@
     return () => {
       alive = false;
       surface.removeEventListener('pointerdown', pointerDown);
+      surface.removeEventListener('pointermove', pointerMove);
       surface.removeEventListener('pointerup', pointerUp);
       surface.removeEventListener('pointercancel', pointerCancel);
+      window.visualViewport?.removeEventListener('resize', scheduleRelayout);
       stopFullscreenWatch();
       // Leave full screen with the reader, but only if the reader entered it.
       if (enteredFullscreen) void exitFullscreen();
@@ -370,12 +399,21 @@
     if (status !== 'ready' || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
     // The bookmark dialog handles its own keys (Escape closes it).
     if (bookmarkDraft) return;
+    // The end screen is an extra page after the last one: Escape or "back" keys return to it.
+    if (ended && !note) {
+      const onButton = event.target instanceof Element && event.target.closest('button');
+      const back = ['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key) || (event.key === ' ' && event.shiftKey && !onButton);
+      if (event.key === 'Escape' || back) {
+        event.preventDefault();
+        ended = false;
+      }
+      return;
+    }
     // Overlays: only Escape works, page keys are ignored.
-    if (ended || note || contentsOpen) {
+    if (note || contentsOpen) {
       if (event.key === 'Escape') {
         if (note) note = null;
-        else if (contentsOpen) contentsOpen = false;
-        else ended = false;
+        else contentsOpen = false;
       }
       return;
     }
@@ -443,7 +481,7 @@
   {/if}
 
   {#if ended && record}
-    <EndOfBook book={record} onlibrary={() => navigate('/library')} onclose={() => ended = false} onrestart={readAgain} />
+    <EndOfBook book={record} onclose={() => navigate('/library')} onrestart={readAgain} onback={() => ended = false} />
   {/if}
 
   {#if remote && status === 'ready' && !ended}

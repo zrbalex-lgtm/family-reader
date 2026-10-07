@@ -20,7 +20,7 @@ h2 { font-size: 1.125rem; font-weight: 550; line-height: 1.4; }
 .brand-light { font-weight: 400; color: var(--muted); }
 .brand-mark { color: var(--accent); display: flex; }
 .eyebrow { display: block; font: 500 .75rem/1.5 var(--font-ui); letter-spacing: .16em; color: var(--accent); margin-bottom: 1rem; }
-.auth-layout { min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto; padding: max(2rem, env(safe-area-inset-top)) max(1.25rem, env(safe-area-inset-right)) max(1.5rem, env(safe-area-inset-bottom)) max(1.25rem, env(safe-area-inset-left)); }
+.auth-layout { min-height: 100vh; min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto; padding: max(2rem, env(safe-area-inset-top)) max(1.25rem, env(safe-area-inset-right)) max(1.5rem, env(safe-area-inset-bottom)) max(1.25rem, env(safe-area-inset-left)); }
 .auth-top { text-align: center; padding-bottom: 2.5rem; }
 .login-card { width: min(100%, 410px); align-self: center; justify-self: center; padding: 1.5rem 0 3rem; }
 .login-card h1 { font-size: clamp(2.6rem, 10vw, 3.3rem); }
@@ -86,7 +86,7 @@ input:autofill { -webkit-text-fill-color: var(--text); box-shadow: 0 0 0 1000px 
 .setup-screen > .brand { margin-bottom: 2rem; }
 .setup-screen h1 { font-size: 2.2rem; }
 .setup-screen p { margin-top: 1.25rem; }
-.loading-screen { min-height: 100svh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.5rem; }
+.loading-screen { min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.5rem; }
 .skip-link { position: fixed; top: -100px; left: 1rem; z-index: 100; background: var(--accent); color: var(--bg); border-radius: 6px; padding: .5rem 1rem; }
 .skip-link:focus { top: 1rem; }
 @media (min-width: 800px) { .auth-top { text-align: left; padding-left: 1.5rem; } }

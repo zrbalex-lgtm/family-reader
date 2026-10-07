@@ -17,6 +17,15 @@ Included:
 - GitHub Pages Actions deployment on pushes to `main`, with the correct repository base path.
 - Automated metadata, archive, search, cleanup, configuration and PostgreSQL policy tests in GitHub Actions.
 
+## Supported browsers
+
+The oldest family device is an iPad on **iPadOS 16.7 (Safari 16)**, so this is the minimum:
+
+- iPhone / iPad: iOS / iPadOS **16** or newer (Safari 16+), in Safari or as a Home Screen app.
+- Desktop: current Chrome, Edge, Firefox and Safari (Chrome/Edge 100+, Firefox 100+, Safari 15.4+).
+
+The Vite build targets Safari 15 / iOS 15 (`build.target` and `build.cssTarget` in `vite.config.js`), giving a small safety margin. The code avoids features Safari 16 lacks (View Transitions, container queries, `color-mix()`, `:has()`-dependent layout, `Promise.withResolvers`); prefixed `-webkit-` fallbacks are included for hyphenation, `user-select`, `backdrop-filter` and column breaks, and `vh` fallbacks precede `svh`. Full screen uses the prefixed WebKit API where the standard one is missing and is hidden on iPhone.
+
 ## 1. Create a Supabase project
 
 1. Open [Supabase](https://supabase.com/dashboard) and create a **dedicated project** for Family Reader.

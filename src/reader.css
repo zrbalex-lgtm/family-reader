@@ -46,20 +46,20 @@
   hyphens: var(--reader-hyphens, auto);
   -webkit-hyphens: var(--reader-hyphens, auto);
   overflow-wrap: break-word;
-  transition: transform .22s ease-out;
+  /* Page-turn transitions are set inline by the paginator. */
   will-change: transform;
 }
 .fb-flow p { margin: 0; text-indent: var(--reader-indent); orphans: 2; widows: 2; }
 /* Keep empty paragraphs one line tall so they still have a measurable position. */
 .fb-flow p:empty::after, .fb-flow .fb-image:empty::after { content: '\200b'; }
 
-.fb-flow .fb-title { margin: 0 0 1.4em; text-align: center; line-height: 1.3; font-weight: 600; break-after: avoid; break-inside: avoid; }
+.fb-flow .fb-title { margin: 0 0 1.4em; text-align: center; line-height: 1.3; font-weight: 600; -webkit-column-break-after: avoid; break-after: avoid; -webkit-column-break-inside: avoid; break-inside: avoid; }
 .fb-flow .fb-title p { text-indent: 0; }
 .fb-flow .fb-title.level-0 { font-size: 1.45em; margin-top: 1.5em; }
 .fb-flow .fb-title.level-1 { font-size: 1.3em; margin-top: .5em; }
 .fb-flow .fb-title.level-2 { font-size: 1.12em; margin-top: 1em; }
 .fb-flow .fb-title.level-3 { font-size: 1em; margin-top: 1em; }
-.fb-flow .fb-subtitle { margin: 1em 0 .6em; text-align: center; text-indent: 0; font-weight: 600; break-after: avoid; }
+.fb-flow .fb-subtitle { margin: 1em 0 .6em; text-align: center; text-indent: 0; font-weight: 600; -webkit-column-break-after: avoid; break-after: avoid; }
 
 .fb-flow .fb-epigraph { margin: 0 0 1.4em 30%; font-size: .92em; font-style: italic; text-align: left; }
 .fb-flow .fb-epigraph p { text-indent: 0; }
@@ -74,7 +74,9 @@
 .fb-flow .fb-date { text-align: right; text-indent: 0; font-size: .9em; }
 .fb-flow .fb-empty-line { height: calc(var(--reader-line-height) * 1em); }
 
-.fb-flow .fb-image { margin: .8em 0; text-align: center; text-indent: 0; break-inside: avoid; }
+.fb-flow .fb-image { margin: .8em 0; text-align: center; text-indent: 0; -webkit-column-break-inside: avoid; break-inside: avoid; }
+/* Page-count marker appended after each chunk. */
+.fb-flow .fb-end { height: 0; margin: 0; padding: 0; }
 .fb-flow .fb-image img { display: inline-block; max-width: 100%; max-height: calc(var(--page-height, 80vh) - 1.6em); object-fit: contain; }
 .fb-flow .fb-inline-image { max-height: 1.5em; vertical-align: middle; }
 
@@ -226,3 +228,5 @@
 .note-body p { margin: 0 0 .5em; }
 .note-body .fb-v { padding-left: 1.5em; text-indent: -1.5em; margin: 0; }
 .note-body img { max-width: 100%; height: auto; }
+.end-of-book { touch-action: pan-y; outline: none; }
+.end-hint { margin-top: 1.4rem; color: var(--reader-muted); font: 400 .8125rem/1.4 var(--font-ui); }

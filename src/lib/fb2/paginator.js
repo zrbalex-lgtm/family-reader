@@ -2,12 +2,26 @@ import { renderChunk } from './render.js';
 import { chunkIndexFor, clampPosition, percentAt } from './book.js';
 
 // Column layout limits, in CSS pixels.
-const MIN_MARGIN = 20;
+const DEFAULT_MARGIN = 20;
 const SPREAD_MIN_WIDTH = 1000;
-const MAX_LINE = 680;
-const MAX_SPREAD_LINE = 600;
+// Margins only grow beyond the reader setting when a column would be wider than this
+// (very wide desktop windows). Tablets and phones always use the setting as is.
+const MAX_COLUMN = 1000;
 // Small tolerance for sub-pixel rounding when mapping rects to pages.
 const EPSILON = 2;
+// Page-turn animation: within a chunk, and each half of a chapter/chunk change.
+const TURN_MS = 240;
+const EDGE_MS = 160;
+// Dragging past the first or last page moves the text only a little.
+const EDGE_RESISTANCE = 0.35;
+
+function reducedMotion() {
+  return Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function textNodesOf(element) {
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
@@ -40,7 +54,8 @@ function charRect(texts, offset) {
 
 function waitForImages(root) {
   return Promise.all(Array.from(root.querySelectorAll('img'), (image) =>
-    image.decode().catch(() => image.remove()),
+    // Remove only images that really failed; decode() can reject spuriously in some browsers.
+    image.decode().catch(() => { if (!image.naturalWidth) image.remove(); }),
   ));
 }
 
@@ -56,6 +71,9 @@ export class Paginator {
     this.onChange = onChange;
     this.flow = document.createElement('div');
     this.flow.className = 'fb-flow';
+    // Zero-height marker after the chunk's text: its column gives the page count.
+    this.endMarker = document.createElement('div');
+    this.endMarker.className = 'fb-end';
     if (book.lang) this.flow.lang = book.lang;
     page.replaceChildren(this.flow);
     this.section = 0;
@@ -63,8 +81,9 @@ export class Paginator {
     this.pageIndex = 0;
     this.pages = 1;
     this.width = 0;
+    this.height = 0;
     this.leaves = [];
-    this.minMargin = MIN_MARGIN;
+    this.margin = DEFAULT_MARGIN;
     this.charsPerPage = 0;
     this.densityArea = 0;
     this.token = 0;
@@ -92,11 +111,12 @@ export class Paginator {
   }
 
   // target: 'start' | 'end' | { paragraph, charOffset }
-  async load(sectionIndex, chunkIndex, target) {
+  // enterFrom: +1 slides the new page in from the right, -1 from the left, 0 shows it at once.
+  async load(sectionIndex, chunkIndex, target, enterFrom = 0) {
     const token = ++this.token;
     this.busy = true;
     const section = this.book.sections[sectionIndex];
-    this.flow.replaceChildren(renderChunk(this.book, section, section.chunks[chunkIndex]));
+    this.flow.replaceChildren(renderChunk(this.book, section, section.chunks[chunkIndex]), this.endMarker);
     this.section = sectionIndex;
     this.chunk = chunkIndex;
     this.leaves = Array.from(this.flow.querySelectorAll('[data-p]'));
@@ -106,38 +126,99 @@ export class Paginator {
     if (target === 'start') this.pageIndex = 0;
     else if (target === 'end') this.pageIndex = this.pages - 1;
     else this.pageIndex = this.pageFor(target);
-    this.apply(false);
+    if (enterFrom && !reducedMotion()) {
+      this.setOffset(this.pageX(this.pageIndex) + enterFrom * this.width);
+      this.setOffset(this.pageX(this.pageIndex), EDGE_MS);
+    } else {
+      this.apply(false);
+    }
     this.busy = false;
     this.emit();
     return true;
   }
 
-  // Sizes the column container to the page box and counts the resulting pages.
+  // The visible reading height. The fixed reader can extend under browser toolbars, so the
+  // page box is limited to the visual viewport (except while typing, when the keyboard shrinks it).
+  visibleHeight() {
+    const rect = this.page.getBoundingClientRect();
+    let bottom = rect.bottom;
+    const viewport = window.visualViewport;
+    const typing = document.activeElement?.matches?.('input, textarea, select');
+    if (!typing) {
+      const viewportBottom = viewport && viewport.scale < 1.01 ? viewport.offsetTop + viewport.height : window.innerHeight;
+      // Keep the same bottom margin that the page box has inside its container.
+      const containerBottom = this.page.parentElement?.getBoundingClientRect().bottom ?? rect.bottom;
+      bottom = Math.min(bottom, viewportBottom - Math.max(0, containerBottom - rect.bottom));
+    }
+    return Math.max(1, Math.floor(bottom - rect.top));
+  }
+
+  // Sizes the column container to the visible page and counts the resulting pages.
   measure() {
-    // Guard against a hidden or not-yet-laid-out page box.
     const width = Math.max(1, this.page.clientWidth);
-    const height = Math.max(1, this.page.clientHeight);
+    const height = this.visibleHeight();
     const spread = width >= SPREAD_MIN_WIDTH && width > height;
-    const margin = spread
-      ? Math.max(this.minMargin * 2, Math.floor((width - 2 * MAX_SPREAD_LINE) / 4))
-      : Math.max(this.minMargin, Math.floor((width - MAX_LINE) / 2));
+    const columns = spread ? 2 : 1;
+    // The margin setting is the side padding of every column; the gap between columns is two margins.
+    let margin = this.margin;
+    if ((width - 2 * columns * margin) / columns > MAX_COLUMN) margin = Math.floor((width - columns * MAX_COLUMN) / (2 * columns));
+    const inner = width - 2 * margin;
+    const columnWidth = Math.max(1, Math.floor((inner - (columns - 1) * 2 * margin) / columns));
     // Column gap = 2 × margin, so one page stride equals exactly the page width.
     this.width = width;
+    this.height = height;
     const style = this.flow.style;
     style.transition = 'none';
     style.transform = 'translate3d(0, 0, 0)';
     style.left = margin + 'px';
-    style.width = width - 2 * margin + 'px';
+    style.width = inner + 'px';
     style.height = height + 'px';
-    style.columnCount = spread ? '2' : '1';
     style.columnGap = 2 * margin + 'px';
     style.setProperty('--page-height', height + 'px');
+    this.applyColumns(spread, columnWidth);
 
     const origin = this.flow.getBoundingClientRect().left;
-    let pages = Math.ceil((this.flow.scrollWidth + 2 * margin - EPSILON) / width);
-    const last = this.leaves.at(-1)?.getClientRects();
-    if (last?.length) pages = Math.max(pages, Math.floor((last[last.length - 1].left - origin + EPSILON) / width) + 1);
-    this.pages = Math.max(1, pages);
+    const end = this.endMarker.getBoundingClientRect();
+    const byMarker = Math.floor((end.left - origin + EPSILON) / width) + 1;
+    const byScroll = Math.ceil((this.flow.scrollWidth + 2 * margin - EPSILON) / width);
+    this.pages = Math.max(1, byMarker, byScroll);
+    this.checkLayout(end);
+  }
+
+  // Safari 16 (WebKit) does not create a multi-column layout for "column-count: 1" with an
+  // automatic column width: the chunk becomes one tall column that is cut off at the bottom.
+  // A non-auto column-width always creates columns. The plain variant is kept as a fallback.
+  applyColumns(spread, columnWidth) {
+    const style = this.flow.style;
+    const variants = spread
+      ? [['2', columnWidth + 'px']]
+      : [['auto', columnWidth + 'px'], ['1', 'auto']];
+    for (const [count, width] of variants) {
+      style.columnCount = count;
+      style.columnWidth = width;
+      if (!this.overflowing()) return;
+    }
+    // Nothing fits: keep the preferred variant; checkLayout() reports the problem.
+    style.columnCount = variants[0][0];
+    style.columnWidth = variants[0][1];
+  }
+
+  overflowing() {
+    return this.flow.scrollHeight > this.height + EPSILON;
+  }
+
+  // Development check: text must never extend below the page, or it would be skipped.
+  checkLayout(end) {
+    const top = this.flow.getBoundingClientRect().top;
+    if (!this.overflowing() && end.bottom <= top + this.height + EPSILON) return;
+    console.warn('[reader] Column overflow: text extends below the page and may be skipped.', {
+      pageHeight: this.height,
+      contentHeight: this.flow.scrollHeight,
+      columnCount: this.flow.style.columnCount,
+      columnWidth: this.flow.style.columnWidth,
+      section: this.section,
+      chunk: this.chunk,
+    });
   }
 
   pageOfRect(rect) {
@@ -202,11 +283,53 @@ export class Paginator {
     return found;
   }
 
-  apply(animate) {
-    this.flow.style.transition = animate ? '' : 'none';
-    this.flow.style.transform = `translate3d(${-this.pageIndex * this.width}px, 0, 0)`;
+  pageX(index) {
+    return -index * this.width;
   }
 
+  // Moves the text horizontally; duration 0 jumps without animation. Returns the duration used.
+  setOffset(x, duration = 0) {
+    const style = this.flow.style;
+    const ms = duration && !reducedMotion() ? duration : 0;
+    if (ms) {
+      // Commit any pending instant move first, so the animation starts from the current position.
+      void getComputedStyle(this.flow).transform;
+      style.transition = `transform ${ms}ms ease-out`;
+    } else {
+      style.transition = 'none';
+    }
+    style.transform = `translate3d(${x}px, 0, 0)`;
+    return ms;
+  }
+
+  apply(animate) {
+    this.setOffset(this.pageX(this.pageIndex), animate ? TURN_MS : 0);
+  }
+
+  // Follows the finger during a swipe (dx in CSS pixels, negative = towards the next page).
+  drag(dx) {
+    if (this.busy) return;
+    const edge = (dx > 0 && this.atStart) || (dx < 0 && this.atEnd);
+    this.setOffset(this.pageX(this.pageIndex) + (edge ? dx * EDGE_RESISTANCE : dx));
+  }
+
+  // Returns to the current page after a cancelled swipe.
+  settle() {
+    if (!this.busy) this.apply(true);
+  }
+
+  // Chapter or chunk change: slide the old page out, then the new one in.
+  async cross(sectionIndex, chunkIndex, target, direction) {
+    this.busy = true;
+    const token = this.token;
+    const ms = this.setOffset(this.pageX(this.pageIndex + direction), EDGE_MS);
+    if (ms) await delay(ms);
+    // A jump (contents, bookmark) started meanwhile wins.
+    if (token === this.token) await this.load(sectionIndex, chunkIndex, target, direction);
+    return true;
+  }
+
+  // Returns false only at the end of the book.
   async next() {
     if (this.busy) return true;
     if (this.pageIndex < this.pages - 1) {
@@ -215,11 +338,12 @@ export class Paginator {
       this.emit();
       return true;
     }
-    if (this.chunk + 1 < this.currentSection.chunks.length) return this.load(this.section, this.chunk + 1, 'start');
-    if (this.section + 1 < this.book.sections.length) return this.load(this.section + 1, 0, 'start');
+    if (this.chunk + 1 < this.currentSection.chunks.length) return this.cross(this.section, this.chunk + 1, 'start', 1);
+    if (this.section + 1 < this.book.sections.length) return this.cross(this.section + 1, 0, 'start', 1);
     return false;
   }
 
+  // Returns false only at the start of the book.
   async previous() {
     if (this.busy) return true;
     if (this.pageIndex > 0) {
@@ -228,10 +352,10 @@ export class Paginator {
       this.emit();
       return true;
     }
-    if (this.chunk > 0) return this.load(this.section, this.chunk - 1, 'end');
+    if (this.chunk > 0) return this.cross(this.section, this.chunk - 1, 'end', -1);
     if (this.section > 0) {
       const previous = this.book.sections[this.section - 1];
-      return this.load(this.section - 1, previous.chunks.length - 1, 'end');
+      return this.cross(this.section - 1, previous.chunks.length - 1, 'end', -1);
     }
     return false;
   }
@@ -251,9 +375,10 @@ export class Paginator {
     return this.pageFor(position) === this.pageIndex;
   }
 
-  // Reader setting: the smallest side margin in CSS pixels. Call relayout() afterwards.
-  setMinMargin(pixels) {
-    this.minMargin = Math.max(0, Math.round(pixels) || MIN_MARGIN);
+  // Reader setting: side margin in CSS pixels. Call relayout() afterwards.
+  setMargin(pixels) {
+    const value = Math.round(Number(pixels));
+    this.margin = Number.isFinite(value) && value >= 0 ? value : DEFAULT_MARGIN;
   }
 
   // Call after resize, rotation or reader setting changes.
@@ -271,7 +396,7 @@ export class Paginator {
   // sparse to be representative, so the last good estimate is kept and scaled by page area.
   updateDensity() {
     const chunk = this.currentChunk;
-    const area = this.width * this.page.clientHeight;
+    const area = this.width * this.height;
     if (this.pages >= 3 && chunk.chars) {
       // The last page of a chunk is usually only partly filled.
       this.charsPerPage = chunk.chars / (this.pages - 0.5);

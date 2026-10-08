@@ -13,6 +13,8 @@
   outline: none;
 }
 @media (min-width: 700px) { .reader { --reader-font-size: 1.25rem; } }
+/* Full screen height in iOS Home Screen apps (see src/lib/viewport.js); bottom is then ignored. */
+.reader, .doc-viewer { height: var(--app-height, auto); }
 
 .reader-surface {
   position: absolute;
@@ -90,7 +92,8 @@
 .reader-status h1 { font-size: 1.8rem; }
 .reader-status .button { margin-top: .5rem; }
 
-.reader-bar { position: absolute; left: 0; right: 0; z-index: 2; display: flex; align-items: center; gap: .75rem; background: rgba(16, 21, 25, .96); color: var(--text); font: 400 .875rem/1.4 var(--font-ui); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+/* Toolbars are solid: Safari can leave a blurred band behind after a backdrop-filter element is removed. */
+.reader-bar { position: absolute; left: 0; right: 0; z-index: 2; display: flex; align-items: center; gap: .75rem; background: #101519; color: var(--text); font: 400 .875rem/1.4 var(--font-ui); }
 .reader-top { top: 0; border-bottom: 1px solid var(--border); padding: calc(env(safe-area-inset-top) + .35rem) max(.75rem, env(safe-area-inset-right)) .35rem max(.5rem, env(safe-area-inset-left)); }
 .reader-bottom { bottom: 0; border-top: 1px solid var(--border); padding: .35rem max(1rem, env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + .35rem) max(1rem, env(safe-area-inset-left)); }
 .reader-titles { display: flex; flex: 1; flex-direction: column; min-width: 0; }

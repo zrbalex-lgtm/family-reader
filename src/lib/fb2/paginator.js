@@ -1,5 +1,6 @@
 import { renderChunk } from './render.js';
 import { chunkIndexFor, clampPosition, percentAt } from './book.js';
+import { appHeight } from '../viewport.js';
 
 // Column layout limits, in CSS pixels.
 const DEFAULT_MARGIN = 20;
@@ -145,7 +146,9 @@ export class Paginator {
     const viewport = window.visualViewport;
     const typing = document.activeElement?.matches?.('input, textarea, select');
     if (!typing) {
-      const viewportBottom = viewport && viewport.scale < 1.01 ? viewport.offsetTop + viewport.height : window.innerHeight;
+      let viewportBottom = viewport && viewport.scale < 1.01 ? viewport.offsetTop + viewport.height : window.innerHeight;
+      // iOS Home Screen apps under-report the height; use the corrected full-screen height there.
+      viewportBottom = Math.max(viewportBottom, appHeight());
       // Keep the same bottom margin that the page box has inside its container.
       const containerBottom = this.page.parentElement?.getBoundingClientRect().bottom ?? rect.bottom;
       bottom = Math.min(bottom, viewportBottom - Math.max(0, containerBottom - rect.bottom));

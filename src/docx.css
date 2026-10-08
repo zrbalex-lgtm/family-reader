@@ -30,8 +30,7 @@
 .doc-status { z-index: 4; }
 .doc-bar {
   position: absolute; left: 0; right: 0; z-index: 3; display: flex; align-items: center; gap: .25rem;
-  background: rgba(16, 21, 25, .95); color: var(--text); font: 400 .875rem/1.4 var(--font-ui);
-  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  background: #101519; color: var(--text); font: 400 .875rem/1.4 var(--font-ui);
 }
 .doc-top { top: 0; border-bottom: 1px solid var(--border); padding: calc(env(safe-area-inset-top) + .3rem) max(.6rem, env(safe-area-inset-right)) .3rem max(.4rem, env(safe-area-inset-left)); }
 .doc-bottom { bottom: 0; border-top: 1px solid var(--border); padding: .3rem max(.6rem, env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + .3rem) max(.4rem, env(safe-area-inset-left)); flex-wrap: wrap; }

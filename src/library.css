@@ -149,7 +149,8 @@ select:focus-visible, dialog:focus-visible { outline: 2px solid var(--accent); o
 .library-header {
   position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: .75rem;
   min-height: 56px; padding: calc(env(safe-area-inset-top) + .35rem) max(1rem, env(safe-area-inset-right)) .35rem max(1rem, env(safe-area-inset-left));
-  background: rgba(16, 21, 25, .94); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  /* Solid, without backdrop blur: Safari could leave a blurred band on the next screen. */
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
 }
 .library-brand { display: flex; align-items: center; gap: .55rem; min-height: 44px; font-weight: 600; letter-spacing: -.02em; white-space: nowrap; }

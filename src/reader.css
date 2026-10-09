@@ -13,8 +13,6 @@
   outline: none;
 }
 @media (min-width: 700px) { .reader { --reader-font-size: 1.25rem; } }
-/* Full screen height in iOS Home Screen apps (see src/lib/viewport.js); bottom is then ignored. */
-.reader, .doc-viewer { height: var(--app-height, auto); }
 
 .reader-surface {
   position: absolute;

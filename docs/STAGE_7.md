@@ -27,6 +27,12 @@ Push to `main` and wait for **Deploy Family Reader to GitHub Pages**. **No migra
 - The page title, subtitle and large upload button are gone; book tiles are smaller (3 per row on iPhone, about 5 on iPad portrait), with 1-line authors. Delete moved into the details sheet (⋯ on each card).
 - Continue reading is a slim row of small cards.
 
+## Fix: status bar blur and cut-off bottom bar
+
+With `apple-mobile-web-app-status-bar-style: black-translucent` the Home Screen app drew under the status bar. iOS then blurred a band of whatever was just below the status bar (the first text line or the toolbar title), and the app window it drew was shorter than the screen, which left a dark strip at the bottom. This happened without any blur effect in our CSS. A first attempt to stretch the reader to the full screen height made it worse: the part below the drawn window was cut off. The app now uses a solid `black` status bar, so iOS starts the app below the status bar. If an already installed Home Screen app still shows the old behaviour, delete its icon and add it to the Home Screen again (iOS may keep the status bar style from the time of installation).
+
+- [ ] Home Screen app on iPhone: no blurred line below the status bar (text or toolbar title); the reader's bottom bar and page indicator are fully visible down to the home indicator.
+
 ## Limits worth knowing
 
 - **Use the Home Screen app for offline reading on iPhone/iPad.** Safari can delete a website's stored data after about 7 days without visits; Home Screen apps are exempt. The Home Screen app has its own storage and login, separate from Safari.

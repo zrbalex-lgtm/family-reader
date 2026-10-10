@@ -16,6 +16,13 @@
   import { flushBookmarks } from './lib/bookmarks.js';
   import { updateReady, applyUpdate } from './lib/pwa.js';
 
+  // The Home Screen app always starts at the library (manifest start_url), and iOS does not
+  // restore the page that was open. The open book is remembered per user and reopened on launch.
+  const RESUME_KEY = 'family-reader:resume:';
+  // The page the app was launched with, before any redirect.
+  const launchPath = window.location.hash.slice(1).split('?')[0] || '/library';
+  let launchChecked = false;
+
   let online = $state(navigator.onLine);
   const name = $derived(displayName($auth));
   const initials = $derived([...name][0]?.toUpperCase() || 'R');
@@ -49,6 +56,27 @@
     if ($auth.loading || configurationError) return;
     if (!$auth.session && $route !== '/login') navigate('/login', { replace: true });
     if ($auth.session && $route === '/login') navigate('/library', { replace: true });
+  });
+
+  // Reopen the book that was open when the app was closed; forget it once the user leaves the book.
+  $effect(() => {
+    if ($auth.loading || !$auth.session) return;
+    const key = RESUME_KEY + $auth.session.user.id;
+    const reading = readingId || viewingId;
+    const path = $route;
+    if (!launchChecked) {
+      launchChecked = true;
+      let saved = null;
+      try { saved = localStorage.getItem(key); } catch { /* Storage unavailable: start at the library. */ }
+      if (launchPath === '/library' && !reading && saved && /^\/(read|view)\/[0-9a-f-]{36}$/i.test(saved)) {
+        navigate(saved, { replace: true });
+        return;
+      }
+    }
+    try {
+      if (reading) localStorage.setItem(key, path);
+      else if (path !== '/login') localStorage.removeItem(key);
+    } catch { /* Storage unavailable. */ }
   });
 
   $effect(() => {

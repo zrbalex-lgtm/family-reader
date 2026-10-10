@@ -33,6 +33,14 @@ With `apple-mobile-web-app-status-bar-style: black-translucent` the Home Screen 
 
 - [ ] Home Screen app on iPhone: no blurred line below the status bar (text or toolbar title); the reader's bottom bar and page indicator are fully visible down to the home indicator.
 
+## Reopen the open book on launch
+
+A Home Screen app always starts at its `start_url` (the library) and iOS does not restore the page that was open. The app now remembers, per user, which book or songbook is open; when the app is launched at the library and a book was open when it was closed, that book opens again at the saved position. Leaving a book through Back / Close forgets it, so the next launch shows the library.
+
+- [ ] Open a book, turn a few pages, close the app from the app switcher, reopen: the same book at the same page.
+- [ ] Go back to the library, close the app, reopen: the library.
+- [ ] Same with a songbook.
+
 ## Limits worth knowing
 
 - **Use the Home Screen app for offline reading on iPhone/iPad.** Safari can delete a website's stored data after about 7 days without visits; Home Screen apps are exempt. The Home Screen app has its own storage and login, separate from Safari.
